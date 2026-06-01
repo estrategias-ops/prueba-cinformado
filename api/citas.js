@@ -208,9 +208,9 @@ export default async function handler(request, response) {
                     `DTSTAMP:${icsDates.stamp}`,
                     `DTSTART:${icsDates.start}`,
                     `DTEND:${icsDates.end}`,
-                    'ORGANIZER;CN="Jorge Arango Castaño":mailto:caminosdelser@emcotic.com',
+                    'ORGANIZER;CN="Jorge Arango Castaño":mailto:estrategias@emcotic.com',
                     `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN="${safeName}":mailto:${emailPaciente}`,
-                    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN="Jorge Arango Castaño":mailto:caminosdelser@emcotic.com',
+                    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;CN="Jorge Arango Castaño":mailto:estrategias@emcotic.com',
                     `SUMMARY:Sesión de Psicología - ${safeName}`,
                     `DESCRIPTION:${safeDescription}`,
                     `LOCATION:${safeLocation}`
@@ -239,7 +239,7 @@ export default async function handler(request, response) {
 
                 // A. CORREO PARA EL PACIENTE
                 await resend.emails.send({
-                    from: 'Citas Caminos del Ser <caminosdelser@emcotic.com>',
+                    from: 'Citas Caminos del Ser <estrategias@emcotic.com>',
                     to: emailPaciente,
                     subject: `📅 Confirmación de Sesión - ${fechaBonita}`,
                     html: `
@@ -273,8 +273,8 @@ export default async function handler(request, response) {
 
                 // B. CORREO PARA EL TERAPEUTA
                 await resend.emails.send({
-                    from: 'Sistema de Citas <caminosdelser@emcotic.com>',
-                    to: 'caminosdelser@emcotic.com',
+                    from: 'Sistema de Citas <estrategias@emcotic.com>',
+                    to: 'estrategias@emcotic.com',
                     subject: `NUEVA CITA AGENDADA: ${primerNombre}`,
                     html: `
                         <div style="font-family: Arial, sans-serif; color: #333;">
@@ -325,7 +325,7 @@ export default async function handler(request, response) {
                 const primerNombre = nombrePaciente.split(' ')[0];
 
                 await resend.emails.send({
-                    from: 'Citas Caminos del Ser <caminosdelser@emcotic.com>',
+                    from: 'Citas Caminos del Ser <estrategias@emcotic.com>',
                     to: emailPaciente,
                     subject: `❌ Cita Cancelada - Caminos del Ser`,
                     html: `
@@ -348,8 +348,8 @@ export default async function handler(request, response) {
                 });
                 
                 await resend.emails.send({
-                    from: 'Citas Caminos del Ser <caminosdelser@emcotic.com>',
-                    to: 'caminosdelser@emcotic.com', 
+                    from: 'Citas Caminos del Ser <estrategias@emcotic.com>',
+                    to: 'estrategias@emcotic.com', 
                     subject: `❌ CITA CANCELADA: ${primerNombre}`,
                     html: `<p>Se ha cancelado correctamente la cita de <strong>${nombrePaciente}</strong> programada para el ${fechaStr}.</p>`
                 });
