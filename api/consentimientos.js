@@ -329,15 +329,15 @@ export default async function handler(request, response) {
                 if (resend) {
                     const pdfBuffer = await crearPDFConsentimiento(dataToSave);
                     const mailToPaciente = {
-                        from: 'Notificación Consentimiento Informado <caminosdelser@emcotic.com>',
+                        from: 'Notificación Consentimiento Informado <estrategias@emcotic.com>',
                         to: dataToSave.demograficos.email,
                         subject: `Copia de tu Consentimiento Informado - Caminos del Ser`,
                         html: `<p>Estimado/a ${dataToSave.demograficos.nombre},</p><p>Recibes una copia de tu consentimiento informado para la atención psicológica.</p><p>Adjunto, encontrarás el PDF con tu firma y la totalidad de las cláusulas legales aceptadas.</p>`,
                         attachments: [{ filename: `Consentimiento-${docRef.id}.pdf`, content: Buffer.from(pdfBuffer) }]
                     };
                     const mailToTerapeuta = {
-                        from: 'Notificación Consentimiento Informado <caminosdelser@emcotic.com>',
-                        to: 'caminosdelser@emcotic.com', // CUC REMOVED
+                        from: 'Notificación Consentimiento Informado <estrategias@emcotic.com>',
+                        to: 'estrategias@emcotic.com', // CUC REMOVED
                         subject: `Nuevo Consentimiento Firmado: ${dataToSave.demograficos.nombre}`,
                         html: `<p>Has recibido un consentimiento firmado de <strong>${dataToSave.demograficos.nombre}</strong>.</p><p>Revisa el PDF adjunto para ver los datos completos y la firma.</p>`,
                         attachments: [{ filename: `Consentimiento-${docRef.id}.pdf`, content: Buffer.from(pdfBuffer) }]
@@ -359,11 +359,11 @@ export default async function handler(request, response) {
                     const correos = [
                         { to: dataToSave.paciente1.email, subject: 'Copia de Consentimiento de Pareja' },
                         { to: dataToSave.paciente2.email, subject: 'Copia de Consentimiento de Pareja' },
-                        { to: 'caminosdelser@emcotic.com', subject: `Nuevo Consentimiento Pareja: ${dataToSave.paciente1.nombre} y ${dataToSave.paciente2.nombre}` } // CUC REMOVED
+                        { to: 'estrategias@emcotic.com', subject: `Nuevo Consentimiento Pareja: ${dataToSave.paciente1.nombre} y ${dataToSave.paciente2.nombre}` } // CUC REMOVED
                     ];
 
                     const emailPromises = correos.map(correo => resend.emails.send({
-                        from: 'Notificación Consentimiento <caminosdelser@emcotic.com>',
+                        from: 'Notificación Consentimiento <estrategias@emcotic.com>',
                         to: correo.to,
                         subject: correo.subject,
                         html: `<p>Adjunto encontrarás el PDF íntegro del consentimiento informado de terapia de pareja, incluyendo todas sus cláusulas y las firmas electrónicas.</p>`,
