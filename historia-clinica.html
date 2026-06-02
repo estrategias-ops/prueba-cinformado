@@ -380,7 +380,7 @@
             <svg class="w-6 h-6 mr-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <div>
                 <p class="font-bold text-sm">Borrador Restaurado</p>
-                <p class="text-xs">Se recuperó información no guardada.</p>
+                <p class="text-xs" id="toastBorradorDesc">Se recuperó información no guardada.</p>
             </div>
         </div>
     </main>
@@ -537,6 +537,7 @@
         let evoluciones = [];
         let planTrabajo = [];
         let globalEmailPaciente = '';
+        let globalFechaConsentimiento = null; // NUEVA VARIABLE PARA SESION 0
         
         let draftCeroKey = '';
         let draftPlanKey = '';
@@ -551,6 +552,12 @@
             if (!fechaStr) return '';
             const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             
+            // NUEVO: Manejo seguro de fechas ISO provenientes del consentimiento (ej: 2024-05-12T10:00:00Z)
+            if (fechaStr.includes('T')) {
+                const [ano, mes, dia] = fechaStr.split('T')[0].split('-');
+                return `${ano} - ${meses[parseInt(mes, 10) - 1]} - ${dia}`;
+            }
+
             if (fechaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
                 const [ano, mes, dia] = fechaStr.split('-');
                 return `${ano} - ${meses[parseInt(mes, 10) - 1]} - ${dia}`;
@@ -707,7 +714,8 @@
         function saveDraftPlan() { if(draftPlanKey) localStorage.setItem(draftPlanKey, JSON.stringify(planTrabajo)); }
 
         function restoreDrafts() {
-            let restored = false;
+            let restoredItems = [];
+            
             const draftCero = localStorage.getItem(draftCeroKey);
             if (draftCero) {
                 try {
@@ -729,13 +737,13 @@
                     document.getElementById('nutricion').value = data.nutricion || '';
                     document.getElementById('cierreSesionCero').value = data.cierreSesionCero || '';
                     document.getElementById('compromisoStrikes').checked = data.compromisoStrikes || false;
-                    restored = true;
+                    restoredItems.push('Sesión Cero');
                 } catch(e) {}
             }
 
             const draftPlan = localStorage.getItem(draftPlanKey);
             if (draftPlan) {
-                try { planTrabajo = JSON.parse(draftPlan); renderPlan(); restored = true; } catch(e) {}
+                try { planTrabajo = JSON.parse(draftPlan); renderPlan(); restoredItems.push('Plan de Trabajo'); } catch(e) {}
             }
 
             const draftEvo = localStorage.getItem(draftEvoKey);
@@ -751,7 +759,7 @@
                     if(data.pruebaResultados) document.getElementById('pruebaResultados').value = data.pruebaResultados;
                     if(data.cierre) document.getElementById('evoCierre').value = data.cierre;
                     if(data.strikeAction) { const r = document.querySelector(`input[name="strikeAction"][value="${data.strikeAction}"]`); if(r) r.checked = true; }
-                    restored = true;
+                    restoredItems.push('Bitácora/Evolución');
                 } catch(e) {}
             }
             
@@ -762,14 +770,22 @@
                     if(data.perfil) document.getElementById('perfilEjecutivo').value = data.perfil;
                     if(data.proposito) document.getElementById('propositoVida').value = data.proposito;
                 } catch(e) { document.getElementById('perfilEjecutivo').value = draftPerfil; }
-                restored = true;
+                restoredItems.push('Perfil y Propósito');
             }
 
-            if(restored) {
+            if(restoredItems.length > 0) {
                 resizeAllTextareas();
+                
+                // Actualizamos el texto dinámicamente antes de mostrar la alerta
+                const descEl = document.getElementById('toastBorradorDesc');
+                if (descEl) {
+                    descEl.textContent = 'Recuperado en: ' + restoredItems.join(', ') + '.';
+                }
+
                 const toast = document.getElementById('toastBorrador');
                 toast.classList.remove('translate-y-20', 'opacity-0');
-                setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 4000);
+                // Extendimos el tiempo a 6 segundos para que haya tiempo de leerlo
+                setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 6000);
             }
         }
 
@@ -807,6 +823,12 @@
                 }
                 
                 globalIsParejaForEdit = isPareja;
+                
+                // NUEVO: CAPTURAR LA FECHA DE LA FIRMA PARA LA SESIÓN 0
+                globalFechaConsentimiento = (data.consentimiento && data.consentimiento.fechaAceptacion) 
+                                            || data.fechaDiligenciamiento 
+                                            || (data.demograficos ? data.demograficos.fechaDiligenciamiento : null);
+
                 let nombre, documento, edad, telefono;
                 
                 if (isPareja) {
@@ -913,7 +935,7 @@
                             }
 
                             if (histData.planTrabajo && histData.planTrabajo.length > 0) planTrabajo = histData.planTrabajo;
-                            if(histData.evoluciones && histData.evoluciones.length > 0) { evoluciones = histData.evoluciones; renderTimeline(); }
+                            if(histData.evoluciones && histData.evoluciones.length > 0) { evoluciones = histData.evoluciones; }
                             if(histData.strikes !== undefined) { currentStrikes = histData.strikes; updateStrikeUI(); }
                             
                             setTimeout(resizeAllTextareas, 100);
@@ -924,6 +946,9 @@
                 renderPlan();
                 setupAutoSave();
                 restoreDrafts();
+                
+                // NUEVO: Llama al renderizado SIEMPRE para que se pinte la Sesión 0 incluso si no hay otras sesiones
+                renderTimeline();
 
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
@@ -1128,10 +1153,17 @@
 
         function renderTimeline() {
             const container = document.getElementById('timelineContainer');
-            if (evoluciones.length === 0) { document.getElementById('emptyTimeline').classList.remove('hidden'); return; }
+            
+            // NUEVO: Verificamos que si no hay evoluciones PERO SÍ hay Sesión 0, no oculte la línea de tiempo
+            if (evoluciones.length === 0 && !globalFechaConsentimiento) { 
+                document.getElementById('emptyTimeline').classList.remove('hidden'); 
+                return; 
+            }
+            
             document.getElementById('emptyTimeline').classList.add('hidden');
             Array.from(container.children).forEach(child => { if(child.id !== 'emptyTimeline') container.removeChild(child); });
 
+            // Renderizamos las evoluciones normales (más recientes arriba)
             [...evoluciones].reverse().forEach((evo) => {
                 const card = document.createElement('div');
                 card.className = `timeline-card relative z-10 flex items-start group mb-4 print:mb-4 print:border-b print:border-gray-200 print:pb-4`;
@@ -1173,6 +1205,50 @@
                     </div>`;
                 container.appendChild(card);
             });
+            
+            // NUEVO: Inyectamos la Sesión 0 al final de todo
+            if (globalFechaConsentimiento) {
+                const cardCero = document.createElement('div');
+                cardCero.className = `timeline-card relative z-10 flex items-start group mb-4 print:mb-4 print:border-b print:border-gray-200 print:pb-4 cursor-default`; 
+                const fechaAmigableCero = formatearFechaAmigable(globalFechaConsentimiento);
+                
+                // Obtener datos dinámicos de la Sesión Cero para mostrar pago y motivo
+                const motivoCero = document.getElementById('motivoConsulta').value.trim();
+                const valorCero = document.getElementById('valorSesionCero').value;
+                const pagadoCero = document.getElementById('pagadoSesionCero').checked;
+                
+                // Extraer primeras 20 palabras del motivo
+                let snippetMotivo = "El paciente firmó el consentimiento para iniciar el proceso psicológico. Falta registrar motivo de consulta.";
+                if (motivoCero) {
+                    const words = motivoCero.split(/\s+/);
+                    snippetMotivo = words.slice(0, 20).join(" ") + (words.length > 20 ? "..." : "");
+                }
+
+                // Generar etiqueta visual del pago igual a la de Evolución
+                let badgePagoCero = '';
+                if (valorCero && Number(valorCero) > 0) {
+                    const pagoColor = pagadoCero ? 'bg-green-100 text-green-800 border-green-200' : 'bg-orange-100 text-orange-800 border-orange-200';
+                    const pagoIcon = pagadoCero ? '✓ Pagado' : '⏳ Pendiente';
+                    badgePagoCero = `<span class="print:hidden text-xs font-bold ${pagoColor} px-2 py-0.5 rounded ml-2 border shadow-sm">${formatCurrency(valorCero)} - ${pagoIcon}</span>`;
+                }
+
+                cardCero.innerHTML = `
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-green-600 shadow shrink-0 print:hidden">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div class="ml-4 w-full bg-green-50/60 p-4 rounded-xl border border-green-200 print:shadow-none print:border-none print:p-0 print:ml-0">
+                        <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-green-800 text-sm">${fechaAmigableCero}</span>
+                                ${badgePagoCero}
+                            </div>
+                            <span class="text-xs font-bold bg-green-200 text-green-800 px-2 py-0.5 rounded shadow-sm border border-green-300">Sesión Diagnóstica</span>
+                        </div>
+                        <h4 class="font-bold text-green-900 text-sm mb-1">Sesión 0: Motivo de Consulta</h4>
+                        <p class="text-sm text-green-800 font-medium italic">"${snippetMotivo}"</p>
+                    </div>`;
+                container.appendChild(cardCero);
+            }
         }
 
         function openModal(evoId) {
