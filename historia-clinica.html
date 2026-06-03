@@ -52,6 +52,19 @@
             .timeline-card p.line-clamp-3 { display: none; }
             .timeline-card p.print-full-text { display: block !important; white-space: pre-wrap; }
         }
+
+        /* NUEVO: CSS Específico para imprimir solo el Plan de Trabajo */
+        body.print-mode-plan #mainContent, 
+        body.print-mode-plan header, 
+        body.print-mode-plan #toastBorrador,
+        body.print-mode-plan #sessionModal,
+        body.print-mode-plan #editDemoModal { display: none !important; }
+        body.print-mode-plan #printPlanView { display: block !important; }
+        
+        #printPlanView { display: none; } /* Oculto por defecto en pantalla */
+        @media print {
+            body:not(.print-mode-plan) #printPlanView { display: none !important; }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -77,6 +90,35 @@
     <main class="container mx-auto px-6 py-8 relative">
         <div class="max-w-6xl mx-auto space-y-6">
             
+            <!-- NUEVO: CONTENEDOR PARA IMPRIMIR SOLO EL PLAN DE TRABAJO (Diseño PDF) -->
+            <div id="printPlanView" class="w-full bg-white print:p-0 print:w-full">
+                <div class="text-center mb-8">
+                    <img src="logoprincipal.png" alt="Caminos del Ser Logo" class="h-28 w-auto mx-auto mb-6">
+                    <h1 class="text-2xl font-bold text-[#003366] uppercase tracking-wide">Plan de Trabajo Personalizado</h1>
+                    <h2 class="text-lg font-bold text-gray-800 mt-6 text-left" id="printPlanPacienteName">PACIENTE: </h2>
+                </div>
+                
+                <table class="w-full text-left border-collapse mb-12">
+                    <thead>
+                        <tr class="bg-[#003366] text-white">
+                            <th class="border border-[#003366] p-3 text-center w-24">N° Sesión</th>
+                            <th class="border border-[#003366] p-3 w-1/3">Temática</th>
+                            <th class="border border-[#003366] p-3">Objetivo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="printPlanTableBody" class="text-gray-800 text-sm align-top">
+                        <!-- Inyectado por JS -->
+                    </tbody>
+                </table>
+                
+                <div class="text-center text-sm text-[#003366] font-bold mt-16 border-t-2 border-[#003366] pt-6">
+                    <p>Contacto WhatsApp al 3233796547</p>
+                    <p>Caminosdelser@emcotic.com</p>
+                    <p>www.caminosdelser.co - IG @caminosdelser85</p>
+                    <p>Barranquilla - Colombia</p>
+                </div>
+            </div>
+
             <div id="loading" class="text-center py-10">
                 <p class="text-lg animate-pulse text-[#003366] font-semibold">Desencriptando expediente del paciente...</p>
             </div>
@@ -238,9 +280,16 @@
                     <p class="text-xs text-gray-500 mb-4 no-print">Marca la casilla de cada sesión cuando haya sido completada para llevar un control visual de avance.</p>
                     <div id="planContainer" class="space-y-4"></div>
                     <button onclick="addPlanRow()" class="no-print mt-4 flex items-center text-[#003366] font-bold text-sm hover:underline"><svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>Añadir Nueva Sesión al Plan</button>
+                    
                     <div class="text-right pt-4 no-print border-t border-gray-200 mt-8">
                         <div id="plan-success" class="hidden text-green-600 font-medium text-sm text-center mb-3">Plan de trabajo guardado exitosamente.</div>
-                        <button onclick="savePlan()" id="btnSavePlan" class="bg-[#003366] text-white px-8 py-3 rounded-full font-bold hover:bg-[#002244] transition-colors shadow-lg">Guardar Plan de Trabajo</button>
+                        <div class="flex flex-col sm:flex-row justify-end gap-3">
+                            <button onclick="printPlanOnly()" type="button" class="bg-white border border-[#003366] text-[#003366] px-6 py-3 rounded-full font-bold hover:bg-blue-50 transition-colors shadow-sm flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Descargar Plan de Trabajo
+                            </button>
+                            <button onclick="savePlan()" id="btnSavePlan" class="bg-[#003366] text-white px-8 py-3 rounded-full font-bold hover:bg-[#002244] transition-colors shadow-lg">Guardar Plan de Trabajo</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1107,6 +1156,39 @@
         function updatePlan(index, field, value) { planTrabajo[index][field] = value; saveDraftPlan(); }
         function addPlanRow() { planTrabajo.push({ sesion: `Sesión ${planTrabajo.length + 1}`, tema: '', objetivo: '', completado: false }); renderPlan(); saveDraftPlan(); }
         function removePlanRow(index) { planTrabajo.splice(index, 1); if (planTrabajo.length === 0) planTrabajo.push({ sesion: 'Sesión 1', tema: '', objetivo: '', completado: false }); renderPlan(); saveDraftPlan(); }
+
+        function printPlanOnly() {
+            // Poblar el nombre del paciente
+            const nombrePaciente = document.getElementById('pacienteNombre').textContent;
+            document.getElementById('printPlanPacienteName').textContent = 'PACIENTE: ' + nombrePaciente;
+            
+            // Poblar la tabla con el plan actual
+            const tbody = document.getElementById('printPlanTableBody');
+            tbody.innerHTML = '';
+            
+            planTrabajo.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="border border-gray-300 p-3 text-center font-bold text-gray-700">${index + 1}</td>
+                    <td class="border border-gray-300 p-3 whitespace-pre-wrap text-gray-800">${item.tema || ''}</td>
+                    <td class="border border-gray-300 p-3 whitespace-pre-wrap text-gray-800">${item.objetivo || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Activar la clase en el body para ocultar la HC completa y mostrar solo la hoja de ruta
+            document.body.classList.add('print-mode-plan');
+            
+            // Retraso minúsculo para asegurar que el navegador aplique los estilos antes de abrir PDF
+            setTimeout(() => {
+                window.print();
+                
+                // Remover la clase inmediatamente después de enviar la orden de impresión
+                setTimeout(() => {
+                    document.body.classList.remove('print-mode-plan');
+                }, 500);
+            }, 100);
+        }
 
         async function savePlan() {
             const id = new URLSearchParams(window.location.search).get('id');
