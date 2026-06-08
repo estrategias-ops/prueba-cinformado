@@ -55,9 +55,20 @@
             </div>
 
             <div>
-                <p class="text-sm text-gray-600 text-center font-medium mb-4">Dibuja tu firma en el recuadro para validar tu asistencia a esta sesión.</p>
+                <p class="text-sm text-gray-600 text-center font-medium mb-4">Dibuja tu firma en el recuadro o importa una imagen para validar tu asistencia a esta sesión.</p>
+                
                 <canvas id="firma-canvas" width="300" height="200" class="cursor-crosshair"></canvas>
-                <button type="button" id="limpiarFirma" class="mt-2 text-xs font-bold text-red-500 w-full text-center hover:underline">Borrar Dibujo</button>
+                
+                <!-- 🛡️ NUEVO BLOQUE: Botones duales de Borrar e Importar -->
+                <div class="flex justify-between items-center mt-3 px-1">
+                    <button type="button" id="limpiarFirma" class="text-xs font-bold text-red-500 hover:underline">Borrar Dibujo</button>
+                    
+                    <label for="importarFirma" class="text-xs font-bold text-[#003366] cursor-pointer hover:underline flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Importar Imagen
+                    </label>
+                    <input type="file" id="importarFirma" accept="image/png, image/jpeg, image/jpg" class="hidden">
+                </div>
             </div>
 
             <div id="formError" class="hidden bg-red-50 text-red-600 text-xs font-bold p-3 rounded text-center border border-red-200"></div>
@@ -105,6 +116,7 @@
                 document.getElementById('validarForm').classList.remove('hidden');
                 
                 initCanvas();
+                setupImageImport(); // 🛡️ Inicializa el importador de imágenes
 
             } catch (err) {
                 showError();
@@ -148,7 +160,45 @@
             canvas.addEventListener('touchmove', (e) => { if (!isDrawing) return; e.preventDefault(); const p = getEventPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); [lastX, lastY] = [p.x, p.y]; }, {passive: false});
             canvas.addEventListener('touchend', () => isDrawing = false);
 
-            document.getElementById('limpiarFirma').onclick = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('limpiarFirma').onclick = () => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                ctx.clearRect(0, 0, rect.width, 200);
+                document.getElementById('importarFirma').value = ""; // Limpiar el input file también
+            };
+        }
+
+        // 🛡️ LÓGICA PARA IMPORTAR IMAGEN AL CANVAS
+        function setupImageImport() {
+            const fileInput = document.getElementById('importarFirma');
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const rect = canvas.parentElement.getBoundingClientRect();
+                        
+                        // Limpiamos el canvas antes de dibujar la nueva imagen
+                        ctx.clearRect(0, 0, rect.width, 200);
+                        
+                        // Calculamos la proporción para escalar la imagen al centro del canvas sin deformarla
+                        const hRatio = rect.width / img.width;
+                        const vRatio = 200 / img.height;
+                        const ratio  = Math.min(hRatio, vRatio);
+                        
+                        const centerShift_x = (rect.width - img.width * ratio) / 2;
+                        const centerShift_y = (200 - img.height * ratio) / 2;
+                        
+                        // Dibujamos la imagen
+                        ctx.drawImage(img, 0, 0, img.width, img.height,
+                                      centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+                    }
+                    img.src = event.target.result;
+                }
+                reader.readAsDataURL(file);
+            });
         }
 
         document.getElementById('validarForm').addEventListener('submit', async (e) => {
@@ -157,7 +207,7 @@
             
             const isCanvasEmpty = !new Uint32Array(ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer).some(c => c !== 0);
             if (isCanvasEmpty) {
-                errDiv.textContent = 'Por favor, dibuja tu firma antes de continuar.';
+                errDiv.textContent = 'Por favor, dibuja tu firma o importa una imagen antes de continuar.';
                 errDiv.classList.remove('hidden'); return;
             }
 
