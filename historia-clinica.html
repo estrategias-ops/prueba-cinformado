@@ -392,7 +392,7 @@
                             </div>
                         </div>
 
-                        <!-- 3. BLOQUE DE HISTORIAL DE SESIONES CON QR Y BOTONES DE VALIDACIÓN -->
+                        <!-- 3. BLOQUE DE HISTORIAL DE SESIONES -->
                         <div class="border-t border-gray-200 pt-8 print:mt-6 print:pt-4 print:border-none">
                             <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Historial de Sesiones</h3>
                             <p class="text-xs text-gray-500 mb-6 no-print flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg> Clic en una sesión para leer detalles, añadir anexos o solicitar validación.</p>
@@ -522,16 +522,24 @@
 
             <div class="px-6 py-6 overflow-y-auto space-y-6">
                 
-                <div id="modalFirmaPacienteBox" class="hidden p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div>
-                        <h4 class="text-sm font-bold text-[#003366] mb-1">✅ Sesión Validada Legalmente</h4>
-                        <p class="text-xs text-gray-500">El paciente firmó y aceptó esta evolución el <span id="modalFirmaFecha" class="font-mono">---</span></p>
+                <!-- CAJA DE FIRMA MÁS GRANDE Y CLARA PARA TRAZABILIDAD -->
+                <div id="modalFirmaPacienteBox" class="hidden p-5 rounded-xl border-2 border-emerald-200 bg-emerald-50 flex flex-col md:flex-row items-center justify-between gap-6 shadow-inner">
+                    <div class="w-full md:w-1/2">
+                        <h4 class="text-base font-bold text-emerald-800 mb-1 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Sesión Validada y Certificada
+                        </h4>
+                        <p class="text-xs text-emerald-700">Firma electrónica incrustada y verificada bajo el principio de no repudio.</p>
+                        <p class="text-xs text-emerald-600 mt-2 font-mono">Timestamp: <span id="modalFirmaFecha"></span></p>
                     </div>
-                    <img id="modalFirmaImg" src="" class="h-12 bg-white rounded border border-gray-200 px-2">
+                    <div class="w-full md:w-1/2 flex justify-center bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <!-- IMAGEN AMPLIADA -->
+                        <img id="modalFirmaImg" src="" class="h-24 object-contain" alt="Firma del Paciente">
+                    </div>
                 </div>
 
                 <div>
-                    <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Nota de Evolución Original</h4>
+                    <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Nota de Evolución / Encuadre</h4>
                     <div id="modalNota" class="text-gray-800 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-100 text-[15px] leading-relaxed"></div>
                 </div>
                 <div id="modalPruebasContainer" class="hidden">
@@ -551,7 +559,7 @@
                 <div id="modalAnexosContainer" class="space-y-4"></div>
                 <hr class="border-gray-200">
                 
-                <div class="bg-green-50 border border-green-200 rounded-xl p-5 relative overflow-hidden print:hidden">
+                <div id="modalEstadoFinancieroBox" class="bg-green-50 border border-green-200 rounded-xl p-5 relative overflow-hidden print:hidden">
                     <h4 class="text-md font-bold text-green-800 mb-3 flex items-center">
                         <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         Estado Financiero de la Sesión
@@ -572,7 +580,7 @@
                     <div id="pagoSuccessMsg" class="hidden text-green-700 text-xs font-bold mt-3">¡Pago actualizado correctamente en la base de datos!</div>
                 </div>
 
-                <div class="bg-[#f8f9fa] border border-[#d1d5db] rounded-xl p-5 relative overflow-hidden mt-6">
+                <div id="modalAnexosInputBox" class="bg-[#f8f9fa] border border-[#d1d5db] rounded-xl p-5 relative overflow-hidden mt-6">
                     <div class="absolute top-0 left-0 w-1 h-full bg-yellow-400"></div>
                     <h4 class="text-md font-bold text-gray-800 mb-2 flex items-center">
                         <svg class="w-4 h-4 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -628,7 +636,7 @@
         let globalPatientDataForEdit = null;
         let globalIsParejaForEdit = false;
         let firmaSesionCeroGlobal = null;
-
+        let fechaFirmaSesionCeroGlobal = null; // 🛡️ Variable nueva para la fecha de firma cero
         function formatearFechaAmigable(fechaStr) {
             if (!fechaStr) return '';
             const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -1308,6 +1316,7 @@
                             <div class="flex items-center gap-2 print:hidden">
                                 ${firmaBtnHtmlCero}
                                 <span class="text-xs font-bold bg-green-200 text-green-800 px-2 py-0.5 rounded shadow-sm border border-green-300">Sesión Diagnóstica</span>
+                                <button onclick="openModal('sesionCero')" class="text-xs font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 px-3 py-1 rounded transition-colors shadow-sm">Abrir Detalle</button>
                             </div>
                         </div>
                         <h4 class="font-bold text-green-900 text-sm mb-1">Sesión 0: Motivo de Consulta</h4>
@@ -1365,7 +1374,27 @@
         }
 
         function openModal(evoId) {
-            const evo = evoluciones.find(e => e.id === evoId);
+            let evo;
+            let isSesionCero = false;
+
+            if (evoId === 'sesionCero') {
+                isSesionCero = true;
+                evo = {
+                    id: 'sesionCero',
+                    fecha: document.getElementById('fechaSesionCero').value,
+                    valor: document.getElementById('valorSesionCero').value,
+                    pagado: document.getElementById('pagadoSesionCero').checked,
+                    nota: "MOTIVO DE CONSULTA:\n" + document.getElementById('motivoConsulta').value + "\n\nDIAGNÓSTICO HALCÓN:\n• Habilidades: " + document.getElementById('habilidades').value + "\n• Aspiración: " + document.getElementById('aspiracion').value + "\n• Lógica/Creencias: " + document.getElementById('creencias').value + "\n• Construcción: " + document.getElementById('construccion').value + "\n• Orientación: " + document.getElementById('orientacion').value + "\n• Nutrición: " + document.getElementById('nutricion').value,
+                    cierre: document.getElementById('cierreSesionCero').value,
+                    firmaPaciente: firmaSesionCeroGlobal,
+                    fechaFirmaPaciente: fechaFirmaSesionCeroGlobal,
+                    hasPrueba: false,
+                    anexos: []
+                };
+            } else {
+                evo = evoluciones.find(e => e.id === evoId);
+            }
+
             if(!evo) return;
 
             document.getElementById('currentSessionIdModal').value = evoId;
@@ -1396,9 +1425,17 @@
                 firmaBox.classList.add('hidden');
             }
 
-            document.getElementById('modalEvoValor').value = evo.valor || '';
-            document.getElementById('modalEvoPagado').checked = !!evo.pagado;
-            document.getElementById('pagoSuccessMsg').classList.add('hidden');
+            // Ocultar acciones de modificación si es Sesión Cero para evitar conflictos
+            if (isSesionCero) {
+                document.getElementById('modalEstadoFinancieroBox').classList.add('hidden');
+                document.getElementById('modalAnexosInputBox').classList.add('hidden');
+            } else {
+                document.getElementById('modalEvoValor').value = evo.valor || '';
+                document.getElementById('modalEvoPagado').checked = !!evo.pagado;
+                document.getElementById('pagoSuccessMsg').classList.add('hidden');
+                document.getElementById('modalEstadoFinancieroBox').classList.remove('hidden');
+                document.getElementById('modalAnexosInputBox').classList.remove('hidden');
+            }
 
             const anexosContainer = document.getElementById('modalAnexosContainer');
             anexosContainer.innerHTML = '';
