@@ -8,12 +8,10 @@ export default async function handler(request, response) {
 
     try {
         // ==========================================
-        // GET: OBTENER RESEÑAS PÚBLICAS (Para el Muro)
+        // 1. GET: OBTENER RESEÑAS PÚBLICAS (Para el Muro) - INTACTO
         // ==========================================
         if (request.method === 'GET' && action === 'getPublicReviews') {
-            // Buscamos solo las reseñas aprobadas para proteger la imagen pública
             const snapshot = await db.collection('valoraciones').where('estado', '==', 'Aprobado').get();
-            
             let reviews = [];
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -25,15 +23,64 @@ export default async function handler(request, response) {
                     fecha: data.fecha
                 });
             });
-
-            // Ordenamos en memoria del más reciente al más antiguo
             reviews.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
             return response.status(200).json(reviews);
         }
 
         // ==========================================
-        // POST: ENVIAR SOLICITUD DE RESEÑA AL PACIENTE
+        // 2. GET: OBTENER TODAS LAS RESEÑAS (NUEVO: Para tu panel administrativo)
+        // ==========================================
+        if (request.method === 'GET' && action === 'getAllAdmin') {
+            // Protección de ruta: Solo tú (el consultor) puedes ver esto
+            if (!verifyAuth(request)) {
+                return response.status(401).json({ message: 'Acceso Denegado. Sesión inválida.' });
+            }
+
+            const snapshot = await db.collection('valoraciones').get();
+            let allReviews = [];
+            snapshot.forEach(doc => {
+                allReviews.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            
+            // Ordenar de más reciente a más antiguo
+            allReviews.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            return response.status(200).json(allReviews);
+        }
+
+        // ==========================================
+        // 3. POST: ACTUALIZAR ESTADO (NUEVO: Aprobar u Ocultar)
+        // ==========================================
+        if (request.method === 'POST' && action === 'updateStatus') {
+            if (!verifyAuth(request)) {
+                return response.status(401).json({ message: 'Acceso Denegado. Sesión inválida.' });
+            }
+            
+            const { id, estado } = sanitizePayload(request.body);
+            if (!id || !estado) return response.status(400).json({ message: 'Datos incompletos.' });
+
+            await db.collection('valoraciones').doc(id).update({ estado: estado });
+            return response.status(200).json({ message: `Reseña actualizada a: ${estado}` });
+        }
+
+        // ==========================================
+        // 4. DELETE: ELIMINAR RESEÑA (NUEVO)
+        // ==========================================
+        if (request.method === 'DELETE' && action === 'deleteReview') {
+            if (!verifyAuth(request)) {
+                return response.status(401).json({ message: 'Acceso Denegado. Sesión inválida.' });
+            }
+            const { id } = request.query;
+            if (!id) return response.status(400).json({ message: 'ID no proporcionado.' });
+
+            await db.collection('valoraciones').doc(id).delete();
+            return response.status(200).json({ message: 'Reseña eliminada permanentemente.' });
+        }
+
+        // ==========================================
+        // 5. POST: ENVIAR SOLICITUD DE RESEÑA AL PACIENTE - INTACTO
         // ==========================================
         if (request.method === 'POST' && action === 'sendRequest') {
             if (!verifyAuth(request)) {
@@ -97,7 +144,7 @@ export default async function handler(request, response) {
         }
 
         // ==========================================
-        // POST: RECIBIR Y GUARDAR LA RESEÑA
+        // 6. POST: RECIBIR Y GUARDAR LA RESEÑA - INTACTO
         // ==========================================
         if (request.method === 'POST' && action === 'submitReview') {
             const data = sanitizePayload(request.body);
@@ -107,7 +154,6 @@ export default async function handler(request, response) {
                 return response.status(400).json({ message: 'La calificación y el comentario son obligatorios.' });
             }
 
-            // Estado por defecto: "Pendiente" (Para que el psicólogo la apruebe antes de salir en Google)
             const valoracionData = {
                 pacienteId: pacienteId,
                 estrellas: Number(estrellas),
