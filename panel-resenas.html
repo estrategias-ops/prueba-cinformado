@@ -29,10 +29,16 @@
     <!-- HEADER EXACTAMENTE IGUAL AL PORTAL PRINCIPAL -->
     <header class="bg-white shadow-sm sticky top-0 z-40">
         <div class="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <a href="portal-consentimientos.html" class="flex-shrink-0">
-                <!-- Se mantiene el alt original por instrucciones de mantener funcionalidades visuales -->
-                <img src="logoprincipal.png" alt="Caminos del Ser Logo" class="h-10 w-auto" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiPjx0ZXh0IHk9IjIwIiBmb250LWZhbWlseT0iUG9wcGlucywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwMzM2NiI+TE9HTzwvdGV4dD48L3N2Zz4='">
-            </a>
+            <div class="flex items-center space-x-4">
+                <a href="portal-consentimientos.html" class="flex-shrink-0">
+                    <img src="logoprincipal.png" alt="Caminos del Ser Logo" class="h-10 w-auto" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiPjx0ZXh0IHk9IjIwIiBmb250LWZhbWlseT0iUG9wcGlucywgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwMzM2NiI+TE9HTzwvdGV4dD48L3N2Zz4='">
+                </a>
+                <span class="border-l h-6 mx-2 hidden md:block border-gray-300"></span>
+                <a href="portal-consentimientos.html" class="text-sm font-medium text-gray-600 hover:text-[#003366] flex items-center transition-colors">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Volver al Dashboard
+                </a>
+            </div>
             
             <div class="flex flex-wrap justify-center items-center gap-3">
                 <a href="portal-citas.html" class="flex items-center text-indigo-600 font-bold hover:text-indigo-800 transition-colors bg-indigo-50 px-4 py-2 rounded-full border border-indigo-200 shadow-sm text-sm">
