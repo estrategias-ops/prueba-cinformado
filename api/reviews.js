@@ -7,6 +7,34 @@ export default async function handler(request, response) {
     const { action } = request.query;
 
     try {
+        // ==========================================
+        // GET: OBTENER RESEÑAS PÚBLICAS (Para el Muro)
+        // ==========================================
+        if (request.method === 'GET' && action === 'getPublicReviews') {
+            // Buscamos solo las reseñas aprobadas para proteger la imagen pública
+            const snapshot = await db.collection('valoraciones').where('estado', '==', 'Aprobado').get();
+            
+            let reviews = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                reviews.push({
+                    id: doc.id,
+                    autor: data.autor || 'Anónimo',
+                    estrellas: data.estrellas,
+                    comentario: data.comentario,
+                    fecha: data.fecha
+                });
+            });
+
+            // Ordenamos en memoria del más reciente al más antiguo
+            reviews.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+            return response.status(200).json(reviews);
+        }
+
+        // ==========================================
+        // POST: ENVIAR SOLICITUD DE RESEÑA AL PACIENTE
+        // ==========================================
         if (request.method === 'POST' && action === 'sendRequest') {
             if (!verifyAuth(request)) {
                 return response.status(401).json({ message: 'Acceso Denegado. Sesión inválida.' });
@@ -26,8 +54,6 @@ export default async function handler(request, response) {
             const resend = new Resend(resendApiKey);
             const primerNombre = nombre ? nombre.split(' ')[0] : 'Estimado/a paciente';
             
-            // Construimos el enlace único para este paciente
-            // Asumimos que el aplicativo está en la raíz del dominio
             const protocol = request.headers['x-forwarded-proto'] || 'https';
             const host = request.headers['host'];
             const reviewLink = `${protocol}://${host}/dejar-valoracion.html?id=${id}`;
@@ -53,7 +79,7 @@ export default async function handler(request, response) {
                             </a>
                         </div>
                         
-                        <p style="font-size: 13px; color: #6b7280; border-top: 1px solid #f3f4f6; pt-4;">
+                        <p style="font-size: 13px; color: #6b7280; border-top: 1px solid #f3f4f6; padding-top: 15px;">
                             <em>Nota de Privacidad:</em> Tienes total libertad de usar tu nombre real o un seudónimo. Tu confidencialidad clínica sigue intacta.
                         </p>
                     </div>
@@ -70,6 +96,9 @@ export default async function handler(request, response) {
             return response.status(200).json({ message: 'Correo de solicitud de reseña enviado con éxito.' });
         }
 
+        // ==========================================
+        // POST: RECIBIR Y GUARDAR LA RESEÑA
+        // ==========================================
         if (request.method === 'POST' && action === 'submitReview') {
             const data = sanitizePayload(request.body);
             const { pacienteId, estrellas, comentario, seudonimo } = data;
@@ -78,7 +107,6 @@ export default async function handler(request, response) {
                 return response.status(400).json({ message: 'La calificación y el comentario son obligatorios.' });
             }
 
-            // Guardamos la reseña en una nueva colección separada de la clínica
             // Estado por defecto: "Pendiente" (Para que el psicólogo la apruebe antes de salir en Google)
             const valoracionData = {
                 pacienteId: pacienteId,
@@ -86,7 +114,7 @@ export default async function handler(request, response) {
                 comentario: comentario,
                 autor: seudonimo || 'Anónimo',
                 fecha: new Date().toISOString(),
-                estado: 'Pendiente' // Aprobado | Pendiente | Oculto
+                estado: 'Pendiente' 
             };
 
             await db.collection('valoraciones').add(valoracionData);
