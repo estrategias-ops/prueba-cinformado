@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprobación de Reseñas - CInformado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #F8F7F2; color: #4A4A4A; }
+        .card { background-color: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+        .hidden { display: none !important; }
+        
+        /* Estrellas */
+        .star-filled { color: #F59E0B; } /* text-amber-500 */
+        .star-empty { color: #E5E7EB; } /* text-gray-200 */
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- HEADER EXACTAMENTE IGUAL AL PORTAL PRINCIPAL, SOLO CAMBIA EL ESTADO ACTIVO DEL BOTÓN -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <a href="portal-consentimientos.html" class="flex-shrink-0">
+                <img src="logoprincipal.png" alt="Caminos del Ser Logo" class="h-10 w-auto">
+            </a>
+            
+            <div class="flex flex-wrap justify-center items-center gap-3">
+                <a href="portal-citas.html" class="flex items-center text-indigo-600 font-bold hover:text-indigo-800 transition-colors bg-indigo-50 px-4 py-2 rounded-full border border-indigo-200 shadow-sm text-sm">
+                    🗓️ Agenda
+                </a>
+                <a href="portal-pagos.html" class="flex items-center text-green-700 font-bold hover:text-green-900 transition-colors bg-green-50 px-4 py-2 rounded-full border border-green-200 shadow-sm text-sm">
+                    <span class="text-lg mr-1">$</span> Pagos
+                </a>
+                <a href="manual-usuario.html" class="flex items-center text-purple-700 font-bold hover:text-purple-900 transition-colors bg-purple-50 px-4 py-2 rounded-full border border-purple-200 shadow-sm text-sm">
+                    📖 Manual
+                </a>
+                
+                <!-- BOTÓN ACTIVO: Aprobar Reseñas (Fondo más oscuro para indicar que estamos aquí) -->
+                <a href="panel-resenas.html" class="flex items-center text-white font-bold bg-[#003366] px-4 py-2 rounded-full shadow-md text-sm transition-colors cursor-default">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                    Aprobar Reseñas
+                </a>
+
+                <span class="border-l h-6 border-gray-300 hidden md:block"></span>
+                <button id="logoutButton" class="text-sm font-bold text-red-600 hover:text-red-800 transition-colors px-2">Cerrar Sesión</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-6 py-8 max-w-7xl relative">
+        
+        <!-- ENCABEZADO DE SECCIÓN -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-gray-200 pb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-[#003366] flex items-center">
+                    <svg class="w-8 h-8 mr-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    Testimonios y Reseñas
+                </h1>
+                <p class="text-sm text-gray-500 mt-2 max-w-2xl">
+                    Gestiona los testimonios de tus pacientes. Aprobar una reseña la hará visible en tu página comercial. Recuerda los principios de confidencialidad y la Ley 1090 antes de publicar nombres reales.
+                </p>
+            </div>
+
+            <!-- FILTROS TIPO PESTAÑAS -->
+            <div class="flex bg-gray-100 p-1 rounded-xl shadow-inner border border-gray-200">
+                <button onclick="filterReviews('pendiente')" id="btn-pendiente" class="tab-btn px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#003366] shadow-sm transition-all">
+                    Pendientes <span id="count-pendiente" class="ml-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs">0</span>
+                </button>
+                <button onclick="filterReviews('aprobado')" id="btn-aprobado" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all">
+                    Aprobadas <span id="count-aprobado" class="ml-1 bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">0</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ESTADO DE CARGA -->
+        <div id="loading" class="text-center py-16">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-[#003366] mb-4"></div>
+            <p class="text-lg text-[#003366] font-semibold">Buscando nuevos testimonios...</p>
+        </div>
+
+        <!-- CONTENEDOR DE TARJETAS (GRID) -->
+        <div id="reviewsGrid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Renderizado dinámico por JS -->
+        </div>
+
+        <!-- ESTADO VACÍO -->
+        <div id="emptyState" class="hidden text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300 mt-4 shadow-sm">
+            <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+            <p class="text-xl font-bold text-[#003366] mb-2" id="emptyTitle">No hay reseñas en esta categoría.</p>
+            <p class="text-sm text-gray-500">Envía solicitudes desde el portal de consentimientos para que tus pacientes dejen su testimonio.</p>
+        </div>
+
+    </main>
+
+    <script>
+        // Variables globales para almacenar las reseñas
+        let allReviews = [];
+        let currentFilter = 'pendiente';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Protección de ruta
+            if (sessionStorage.getItem('consultorAuth') !== 'true') {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                sessionStorage.removeItem('consultorAuth');
+                window.location.href = 'login.html';
+            });
+
+            // Cargar datos
+            fetchReviews();
+        });
+
+        // Función para generar las estrellas visualmente
+        function generateStarsHTML(rating) {
+            let html = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    html += `<svg class="w-5 h-5 star-filled" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+                } else {
+                    html += `<svg class="w-5 h-5 star-empty" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+                }
+            }
+            return html;
+        }
+
+        const formatDate = (isoString) => {
+            if (!isoString) return '';
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+            } catch (e) { return isoString; }
+        };
+
+        // Simulación de carga (Reemplazar luego con tu endpoint real de Firebase)
+        async function fetchReviews() {
+            try {
+                // NOTA CINFORMADO: Aquí debes conectar con tu API cuando la creemos.
+                // const response = await fetch('/api/manage-reviews?action=getAll');
+                // allReviews = await response.json();
+                
+                // MOCK DATA: Simulando la respuesta de la base de datos para diseño
+                setTimeout(() => {
+                    allReviews = [
+                        { id: '1', nombrePaciente: 'María Gómez', email: 'maria@ejemplo.com', rating: 5, comentario: 'Excelente atención. El doctor Jorge logró ayudarme a ver las cosas desde una perspectiva completamente distinta. Su metodología HALCÓN me cambió la vida.', fecha: '2026-06-05T10:00:00Z', estado: 'pendiente', autorizaNombre: true },
+                        { id: '2', nombrePaciente: 'Carlos Jaramillo', email: 'carlos@ejemplo.com', rating: 4, comentario: 'Muy buen profesional, las sesiones de PNL son bastante efectivas para el manejo del estrés laboral.', fecha: '2026-06-08T14:30:00Z', estado: 'pendiente', autorizaNombre: false },
+                        { id: '3', nombrePaciente: 'Ana Lucía Ruiz', email: 'ana@ejemplo.com', rating: 5, comentario: 'Recomendado 100%. Me ayudó a encontrar mi propósito de vida después de una crisis muy fuerte.', fecha: '2026-05-20T09:15:00Z', estado: 'aprobado', autorizaNombre: true }
+                    ];
+                    
+                    document.getElementById('loading').classList.add('hidden');
+                    updateCounts();
+                    renderReviews();
+                }, 800);
+
+            } catch (error) {
+                console.error("Error al cargar reseñas:", error);
+                document.getElementById('loading').innerHTML = '<span class="text-red-600 font-bold">Error cargando los testimonios.</span>';
+            }
+        }
+
+        function filterReviews(status) {
+            currentFilter = status;
+            
+            // Actualizar UI de los botones (Pestañas)
+            const btnPendiente = document.getElementById('btn-pendiente');
+            const btnAprobado = document.getElementById('btn-aprobado');
+
+            if (status === 'pendiente') {
+                btnPendiente.className = "tab-btn px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#003366] shadow-sm transition-all";
+                btnAprobado.className = "tab-btn px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all";
+            } else {
+                btnAprobado.className = "tab-btn px-4 py-2 rounded-lg text-sm font-bold bg-white text-[#003366] shadow-sm transition-all";
+                btnPendiente.className = "tab-btn px-4 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:text-gray-800 transition-all";
+            }
+
+            renderReviews();
+        }
+
+        function updateCounts() {
+            const pendientes = allReviews.filter(r => r.estado === 'pendiente').length;
+            const aprobadas = allReviews.filter(r => r.estado === 'aprobado').length;
+            
+            document.getElementById('count-pendiente').textContent = pendientes;
+            document.getElementById('count-aprobado').textContent = aprobadas;
+        }
+
+        function renderReviews() {
+            const grid = document.getElementById('reviewsGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            grid.innerHTML = '';
+            const filteredReviews = allReviews.filter(r => r.estado === currentFilter);
+
+            if (filteredReviews.length === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                document.getElementById('emptyTitle').textContent = currentFilter === 'pendiente' ? 'No tienes reseñas pendientes por revisar.' : 'No hay reseñas aprobadas aún.';
+            } else {
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+
+                filteredReviews.forEach(review => {
+                    const card = document.createElement('div');
+                    card.className = 'card flex flex-col justify-between h-full relative';
+                    
+                    // Indicador de anonimato sugerido
+                    const anonimatoBadge = review.autorizaNombre 
+                        ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Nombre Público</span>`
+                        : `<span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Anonimizar (Iniciales)</span>`;
+
+                    // Botones de acción dependiendo del estado
+                    let actionButtons = '';
+                    if (review.estado === 'pendiente') {
+                        actionButtons = `
+                            <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                                <button onclick="updateStatus('${review.id}', 'aprobado')" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 py-2 rounded-lg text-sm font-bold transition-colors flex justify-center items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    Aprobar y Publicar
+                                </button>
+                                <button onclick="deleteReview('${review.id}')" class="flex-none bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg transition-colors" title="Rechazar/Eliminar">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        `;
+                    } else if (review.estado === 'aprobado') {
+                        actionButtons = `
+                            <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                                <span class="flex-1 text-center py-2 text-sm font-bold text-green-600 flex justify-center items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Publicada en la Web
+                                </span>
+                                <button onclick="updateStatus('${review.id}', 'pendiente')" class="flex-none bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 px-3 py-2 rounded-lg text-xs font-semibold transition-colors" title="Ocultar (Devolver a pendientes)">
+                                    Ocultar
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-bold text-gray-800 text-base">${review.nombrePaciente}</h3>
+                                    <p class="text-xs text-gray-500">${formatDate(review.fecha)}</p>
+                                </div>
+                                <div class="flex">
+                                    ${generateStarsHTML(review.rating)}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                ${anonimatoBadge}
+                            </div>
+                            <p class="text-sm text-gray-600 italic leading-relaxed">
+                                "${review.comentario}"
+                            </p>
+                        </div>
+                        ${actionButtons}
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+        }
+
+        async function updateStatus(id, newStatus) {
+            // NOTA: Conexión real a Backend. Por ahora simulamos la actualización en memoria.
+            /*
+            try {
+                const response = await fetch('/api/manage-reviews?action=updateStatus', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, estado: newStatus })
+                });
+                if(!response.ok) throw new Error('Error al actualizar');
+            } catch(e) {
+                alert('Error de conexión'); return;
+            }
+            */
+            
+            const index = allReviews.findIndex(r => r.id === id);
+            if (index !== -1) {
+                allReviews[index].estado = newStatus;
+                updateCounts();
+                renderReviews();
+            }
+        }
+
+        async function deleteReview(id) {
+            if(confirm("¿Estás seguro de que deseas eliminar esta reseña? El paciente no será notificado, pero no aparecerá en tu web.")) {
+                // Lógica de borrado en BD aquí
+                allReviews = allReviews.filter(r => r.id !== id);
+                updateCounts();
+                renderReviews();
+            }
+        }
+    </script>
+</body>
+</html>
