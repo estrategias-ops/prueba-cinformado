@@ -31,10 +31,6 @@
                 <a href="manual-usuario.html" class="flex items-center text-purple-700 font-bold hover:text-purple-900 transition-colors bg-purple-50 px-4 py-2 rounded-full border border-purple-200 shadow-sm text-sm" title="Ver y descargar Manual de Usuario">
                     📖 Manual
                 </a>
-                <button onclick="window.open('/api/vault', '_blank')" class="flex items-center text-gray-600 hover:text-[#003366] transition-colors px-4 py-2 rounded-full bg-gray-100 hover:bg-blue-50 font-bold text-sm shadow-sm border border-gray-200" title="Descargar copia de seguridad completa">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Backup
-                </button>
                 <span class="border-l h-6 border-gray-300 hidden md:block"></span>
                 <button id="logoutButton" class="text-sm font-bold text-red-600 hover:text-red-800 transition-colors px-2">Cerrar Sesión</button>
             </div>
@@ -46,7 +42,7 @@
         <div id="backupInfoBanner" class="mb-8 bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center text-[#003366]">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span class="text-sm font-semibold">Próxima actualización legal (Backup): <strong>Viernes a las 16:00</strong></span>
+                <span class="text-sm font-semibold">Próxima actualización legal (Backup): <strong>Viernes a las 16:00 hrs</strong></span>
             </div>
             <button onclick="window.open('/api/vault', '_blank')" class="text-xs bg-white border border-[#003366] text-[#003366] hover:bg-blue-50 px-4 py-1.5 rounded-full font-bold transition-colors">
                 Descargar ahora
@@ -142,7 +138,7 @@
             setInterval(evaluarRecordatorioBackup, 60000);
         });
 
-        // 🛡️ MOTOR DE TIEMPO: Viernes a las 16:00
+        // 🛡️ MOTOR DE TIEMPO: Viernes a las 16:00 hrs
         function evaluarRecordatorioBackup() {
             const now = new Date();
             const currentDay = now.getDay(); 
@@ -269,7 +265,6 @@
             });
         }
 
-        // 🛡️ LÓGICA DE ELIMINACIÓN PERMANENTE REPARADA
         async function deletePatient(id, nombre) {
             if (confirm(`¿Estás completamente seguro de que deseas ELIMINAR PERMANENTEMENTE a ${nombre}?\n\nEsta acción destruirá el consentimiento y toda la historia clínica de la base de datos y NO se puede deshacer.`)) {
                 try {
