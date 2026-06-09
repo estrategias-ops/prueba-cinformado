@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evalúa tu Experiencia - Caminos del Ser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #F8F7F2; color: #4A4A4A; }
+        .star-svg { cursor: pointer; transition: transform 0.2s, fill 0.2s; }
+        .star-svg:hover { transform: scale(1.1); }
+        .star-active { fill: #fbbf24; stroke: #fbbf24; }
+        .star-inactive { fill: none; stroke: #9ca3af; }
+        .input-styled { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px 15px; width: 100%; transition: all 0.3s ease; }
+        .input-styled:focus { outline: none; border-color: #003366; box-shadow: 0 0 0 2px rgba(0, 51, 102, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-8 border border-gray-100">
+        <div class="text-center mb-6">
+            <img src="logoprincipal.png" alt="Caminos del Ser Logo" class="h-14 w-auto mx-auto mb-4">
+            <h1 class="text-2xl font-bold text-[#003366]">Tu testimonio es vital</h1>
+            <p class="text-sm text-gray-500 mt-2">Ayuda a otras personas a dar el primer paso compartiendo tu experiencia en terapia.</p>
+        </div>
+
+        <form id="reviewForm" class="space-y-6">
+            <!-- Calificación con Estrellas -->
+            <div class="text-center">
+                <p class="font-bold text-gray-700 mb-3">¿Cómo calificarías tu progreso?</p>
+                <div class="flex justify-center space-x-2" id="starContainer">
+                    <svg data-val="1" class="w-10 h-10 star-svg star-inactive" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    <svg data-val="2" class="w-10 h-10 star-svg star-inactive" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    <svg data-val="3" class="w-10 h-10 star-svg star-inactive" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    <svg data-val="4" class="w-10 h-10 star-svg star-inactive" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                    <svg data-val="5" class="w-10 h-10 star-svg star-inactive" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                </div>
+                <input type="hidden" id="ratingValue" value="0">
+            </div>
+
+            <!-- Comentario -->
+            <div>
+                <label class="block font-semibold text-gray-700 mb-2">Cuéntanos tu experiencia (Testimonio):</label>
+                <textarea id="comentarioTexto" rows="4" class="input-styled resize-none" placeholder="Tu proceso, los resultados obtenidos o cómo te sentiste durante las sesiones..." required></textarea>
+            </div>
+
+            <!-- Seudónimo (Privacidad) -->
+            <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                <label class="block font-semibold text-[#003366] mb-1">Nombre Público (Opcional)</label>
+                <p class="text-xs text-gray-500 mb-2">Para proteger tu privacidad, puedes usar solo tu primer nombre, tus iniciales o un seudónimo. Si lo dejas vacío aparecerá como "Anónimo".</p>
+                <input type="text" id="seudonimo" class="input-styled bg-white" placeholder="Ej. Ana M. o Paciente agradecido">
+            </div>
+
+            <div id="statusMessage" class="hidden text-center text-sm font-bold p-3 rounded-lg"></div>
+
+            <button type="submit" id="btnSubmit" class="w-full bg-amber-500 text-amber-950 hover:bg-amber-600 font-bold text-lg py-4 rounded-xl transition-colors shadow-lg">
+                Enviar Testimonio
+            </button>
+        </form>
+        
+        <div id="successView" class="hidden text-center py-8">
+            <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-[#003366] mb-2">¡Gracias de corazón!</h2>
+            <p class="text-gray-600">Tu testimonio ha sido enviado exitosamente. Nos llena de alegría haber sido parte de tu proceso.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pacienteId = urlParams.get('id');
+
+            if (!pacienteId) {
+                document.getElementById('reviewForm').innerHTML = '<p class="text-red-600 font-bold text-center">Enlace de valoración inválido.</p>';
+                return;
+            }
+
+            // Lógica de las Estrellas
+            const stars = document.querySelectorAll('.star-svg');
+            const ratingInput = document.getElementById('ratingValue');
+
+            stars.forEach(star => {
+                star.addEventListener('click', (e) => {
+                    const value = parseInt(e.currentTarget.getAttribute('data-val'));
+                    ratingInput.value = value;
+                    stars.forEach(s => {
+                        if (parseInt(s.getAttribute('data-val')) <= value) {
+                            s.classList.remove('star-inactive');
+                            s.classList.add('star-active');
+                        } else {
+                            s.classList.remove('star-active');
+                            s.classList.add('star-inactive');
+                        }
+                    });
+                });
+            });
+
+            // Lógica de Envío
+            document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const rating = ratingInput.value;
+                const comentario = document.getElementById('comentarioTexto').value.trim();
+                const seudonimo = document.getElementById('seudonimo').value.trim();
+                const btn = document.getElementById('btnSubmit');
+                const statusDiv = document.getElementById('statusMessage');
+
+                if (rating === "0") {
+                    statusDiv.textContent = "Por favor, selecciona una calificación (estrellas).";
+                    statusDiv.className = "text-center text-sm font-bold p-3 rounded-lg bg-red-100 text-red-700";
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.textContent = 'Enviando...';
+
+                try {
+                    const response = await fetch('/api/reviews?action=submitReview', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            pacienteId: pacienteId,
+                            estrellas: rating,
+                            comentario: comentario,
+                            seudonimo: seudonimo
+                        })
+                    });
+
+                    if (response.ok) {
+                        document.getElementById('reviewForm').classList.add('hidden');
+                        document.getElementById('successView').classList.remove('hidden');
+                    } else {
+                        throw new Error('Error al procesar.');
+                    }
+                } catch (error) {
+                    statusDiv.textContent = "Ocurrió un error. Intenta nuevamente.";
+                    statusDiv.className = "text-center text-sm font-bold p-3 rounded-lg bg-red-100 text-red-700 mb-4";
+                    btn.disabled = false;
+                    btn.textContent = 'Enviar Testimonio';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
