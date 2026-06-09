@@ -142,10 +142,10 @@
             setInterval(evaluarRecordatorioBackup, 60000);
         });
 
-        // 🛡️ MOTOR DE TIEMPO: Calcula y dispara la alerta ineludible cada Viernes a las 16:00
+        // 🛡️ MOTOR DE TIEMPO: Viernes a las 16:00
         function evaluarRecordatorioBackup() {
             const now = new Date();
-            const currentDay = now.getDay(); // 0 = Domingo, 5 = Viernes
+            const currentDay = now.getDay(); 
             
             let daysSinceFriday = currentDay - 5;
             if (daysSinceFriday < 0) {
@@ -154,9 +154,8 @@
             
             const targetDate = new Date(now);
             targetDate.setDate(now.getDate() - daysSinceFriday);
-            targetDate.setHours(16, 0, 0, 0); // Configurado a Viernes 16:00 (4:00 PM)
+            targetDate.setHours(16, 0, 0, 0); 
 
-            // Si es viernes pero antes de las 4 PM, el objetivo a cumplir es el viernes de la semana PASADA
             if (currentDay === 5 && now.getHours() < 16) {
                 targetDate.setDate(targetDate.getDate() - 7);
             }
@@ -166,7 +165,6 @@
             
             const modal = document.getElementById('backupModal');
 
-            // Si la última vez que le dio clic al botón fue ANTES de este límite de viernes a las 4pm, bloqueamos
             if (lastConfirmedTimestamp < targetTimestamp) {
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden'; 
@@ -261,9 +259,8 @@
                             <a href="detalle-consentimiento.html?id=${p.id}" class="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-50 shadow-sm flex items-center transition-colors">
                                 📄 Consentimiento
                             </a>
-                            <!-- 🛡️ Botón Archivar ajustado por cumplimiento Ley 1090 -->
-                            <button onclick="archivePatient('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')" class="text-amber-600 hover:bg-amber-50 p-1.5 rounded transition-colors" title="Archivar Expediente (Soft Delete)">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                            <button onclick="deletePatient('${p.id}', '${p.nombre.replace(/'/g, "\\'")}')" class="text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors" title="Eliminar Expediente Permanentemente">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                         </div>
                     </td>
@@ -272,25 +269,25 @@
             });
         }
 
-        async function archivePatient(id, nombre) {
-            if (confirm(`¿Estás seguro de que deseas archivar a ${nombre}?\n\nEl expediente desaparecerá de tu vista principal, pero se conservará seguro en la base de datos para cumplir con la custodia legal (Ley 1090).`)) {
+        // 🛡️ LÓGICA DE ELIMINACIÓN PERMANENTE REPARADA
+        async function deletePatient(id, nombre) {
+            if (confirm(`¿Estás completamente seguro de que deseas ELIMINAR PERMANENTEMENTE a ${nombre}?\n\nEsta acción destruirá el consentimiento y toda la historia clínica de la base de datos y NO se puede deshacer.`)) {
                 try {
-                    const response = await fetch(`/api/consentimientos?action=archive`, { 
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: id })
+                    // LLamada HTTP DELETE exacta al controlador
+                    const response = await fetch(`/api/consentimientos?action=delete&id=${id}`, { 
+                        method: 'DELETE'
                     });
                     
                     if (response.ok) {
-                        alert('Expediente archivado correctamente. Custodia legal mantenida.');
+                        alert('Expediente eliminado permanentemente de la base de datos.');
                         window.location.reload();
                     } else {
                         const errorData = await response.json();
-                        alert(`Error al archivar: ${errorData.message}`);
+                        alert(`Error al eliminar: ${errorData.message}`);
                     }
                 } catch (error) {
-                    console.error('Error al archivar:', error);
-                    alert('Hubo un error de conexión al intentar archivar el expediente.');
+                    console.error('Error al eliminar:', error);
+                    alert('Hubo un error de conexión al intentar eliminar el expediente.');
                 }
             }
         }
