@@ -5,6 +5,9 @@ import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Buffer } from 'buffer';
 
+// =======================================================
+// MOTOR DE PAGINACIÓN Y DISEÑO PARA PDFs
+// =======================================================
 function setupPdfBuilder(pdfDoc, font, boldFont) {
     let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -232,12 +235,11 @@ async function crearPDFParejas(datos) {
 }
 
 export default async function handler(request, response) {
-    // 1. DESACTIVAR EL CACHÉ ABSOLUTAMENTE PARA EVITAR FUGAS DE DATOS EN VERCEL
+    // DESACTIVAR EL CACHÉ ABSOLUTAMENTE PARA EVITAR FUGAS DE DATOS EN VERCEL
     response.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
     
     const action = request.query.action;
 
-    // 🛡️ CONTROL DE SEGURIDAD JWT (Evita Fuerza Bruta y Accesos No Autorizados)
     const isPublicAction = (request.method === 'POST' && (action === 'saveIndividual' || action === 'savePareja'));
 
     if (!isPublicAction) {
@@ -305,7 +307,6 @@ export default async function handler(request, response) {
         }
 
         if (request.method === 'POST') {
-            // 🛡️ SANITIZACIÓN EXTREMA: Filtramos todos los campos de texto ingresados contra ataques XSS
             const data = sanitizePayload(request.body);
             
             const resendApiKey = process.env.RESEND2_API_KEY;
@@ -378,6 +379,7 @@ export default async function handler(request, response) {
             }
         }
 
+        // 🛡️ LÓGICA DE BORRADO DEFINITIVO (Hard Delete Restaurado)
         if (request.method === 'DELETE' && action === 'delete') {
             const { id } = request.query;
             if (!id) return response.status(400).json({ message: 'Falta el ID del expediente.' });
@@ -386,7 +388,7 @@ export default async function handler(request, response) {
             await db.collection('consents_parejas').doc(id).delete();
             await db.collection('historias_clinicas').doc(id).delete();
 
-            return response.status(200).json({ message: 'Expediente eliminado completamente.' });
+            return response.status(200).json({ message: 'Expediente eliminado completamente de la base de datos.' });
         }
 
         return response.status(405).json({ message: 'Método o acción no soportada.' });
