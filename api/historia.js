@@ -5,10 +5,10 @@ import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Buffer } from 'buffer';
 
-// =======================================================
+//// =======================================================
 // GENERADOR DE PDF DE VALIDACIÓN DE SESIÓN
 // =======================================================
-async function crearPDFValidacionSesion(nombre, fecha, cierre, firmaB64, userAgent) {
+async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgent) {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -36,11 +36,12 @@ async function crearPDFValidacionSesion(nombre, fecha, cierre, firmaB64, userAge
     page.drawText(fecha || 'No registrada', { x: margin + 120, y, font, size: 11 });
     y -= 40;
 
-    page.drawText('Cierre de la Sesión (¿Qué te llevas?):', { x: margin, y, font: boldFont, size: 11, color: brandColor });
+    // Cambio implementado: Tarea Consignada
+    page.drawText('Tarea Consignada:', { x: margin, y, font: boldFont, size: 11, color: brandColor });
     y -= 20;
 
-    // Text Wrap para el cierre
-    const words = (cierre || 'Sin registro de reflexión final.').split(' ');
+    // Text Wrap para la tarea
+    const words = (tarea || 'Sin registro de tarea.').split(' ');
     let line = '';
     page.drawText('"', { x: margin, y, font: font, size: 11, color: rgb(0.2, 0.2, 0.2) });
     let textY = y;
@@ -85,7 +86,7 @@ async function crearPDFValidacionSesion(nombre, fecha, cierre, firmaB64, userAge
     return await pdfDoc.save();
 }
 
-// =======================================================
+//// =======================================================
 // CONTROLADOR MAESTRO
 // =======================================================
 export default async function handler(request, response) {
@@ -108,17 +109,21 @@ export default async function handler(request, response) {
                 if (!docHist.exists) return response.status(404).json({ message: 'Historia no encontrada.' });
                 
                 const dataHist = docHist.data();
-                let fechaEvo, cierreEvo, yaFirmadoEvo;
+                
+                // Cambio implementado: variables de tareaEvo
+                let fechaEvo, tareaEvo, yaFirmadoEvo;
 
                 if (evoId === 'sesionCero') {
                     fechaEvo = dataHist.fechaSesionCero || new Date().toISOString().split('T')[0];
-                    cierreEvo = dataHist.cierreSesionCero || 'Encuadre y diagnóstico inicial (Sesión 0).';
+                    // Fallback inteligente: Busca 'tareaSesionCero', si no, usa 'cierreSesionCero' antiguo.
+                    tareaEvo = dataHist.tareaSesionCero || dataHist.cierreSesionCero || 'No se consignó tarea en la sesión inicial.';
                     yaFirmadoEvo = !!dataHist.firmaSesionCero;
                 } else {
                     const evolucion = (dataHist.evoluciones || []).find(e => e.id === evoId);
                     if (!evolucion) return response.status(404).json({ message: 'Sesión no encontrada.' });
                     fechaEvo = evolucion.fecha;
-                    cierreEvo = evolucion.cierre || 'Continuación de proceso terapéutico.';
+                    // Fallback inteligente: Busca 'tarea', si no, usa 'cierre' antiguo.
+                    tareaEvo = evolucion.tarea || evolucion.cierre || 'No se consignó tarea en esta sesión.';
                     yaFirmadoEvo = !!evolucion.firmaPaciente;
                 }
 
@@ -136,9 +141,10 @@ export default async function handler(request, response) {
                     }
                 }
 
+                // Se responde enviando la variable 'tarea'
                 return response.status(200).json({
                     fecha: fechaEvo,
-                    cierre: cierreEvo,
+                    tarea: tareaEvo,
                     nombre: nombrePaciente,
                     yaFirmado: yaFirmadoEvo
                 });
@@ -163,7 +169,7 @@ export default async function handler(request, response) {
 
                 const dataHist = doc.data();
                 let fechaSesionMail = "";
-                let cierreSesionMail = "";
+                let tareaSesionMail = "";
 
                 if (data.evoId === 'sesionCero') {
                     await docRef.set({
@@ -172,7 +178,7 @@ export default async function handler(request, response) {
                         userAgentFirmaSesionCero: request.headers['user-agent'] || 'Desconocido'
                     }, { merge: true });
                     fechaSesionMail = dataHist.fechaSesionCero || new Date().toISOString().split('T')[0];
-                    cierreSesionMail = dataHist.cierreSesionCero || 'Encuadre inicial (Sesión 0).';
+                    tareaSesionMail = dataHist.tareaSesionCero || dataHist.cierreSesionCero || 'No se consignó tarea en la sesión inicial.';
                 } else {
                     let evoluciones = dataHist.evoluciones || [];
                     const evoIndex = evoluciones.findIndex(e => e.id === data.evoId);
@@ -184,7 +190,7 @@ export default async function handler(request, response) {
 
                     await docRef.set({ evoluciones: evoluciones }, { merge: true });
                     fechaSesionMail = evoluciones[evoIndex].fecha;
-                    cierreSesionMail = evoluciones[evoIndex].cierre || 'Evolución continua.';
+                    tareaSesionMail = evoluciones[evoIndex].tarea || evoluciones[evoIndex].cierre || 'No se consignó tarea.';
                 }
 
                 // --- ENVÍO DE CORREOS RESEND CON PDF ADJUNTO ---
@@ -210,8 +216,8 @@ export default async function handler(request, response) {
                         const fechaSesionF = new Date(`${fechaSesionMail}T12:00:00`).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
                         const userAgentString = request.headers['user-agent'] || 'Desconocido';
                         
-                        // Generar el Buffer del PDF
-                        const pdfBuffer = await crearPDFValidacionSesion(nombreCompleto, fechaSesionF, cierreSesionMail, data.firmaDigital, userAgentString);
+                        // Generar el Buffer del PDF incluyendo la variable tareaSesionMail
+                        const pdfBuffer = await crearPDFValidacionSesion(nombreCompleto, fechaSesionF, tareaSesionMail, data.firmaDigital, userAgentString);
 
                         // Email Paciente
                         const htmlPaciente = `
@@ -223,14 +229,14 @@ export default async function handler(request, response) {
                                     <h3 style="color: #003366;">Confirmación de Servicio</h3>
                                     <p>Este correo certifica que la sesión psicológica programada para la fecha <strong>${fechaSesionF}</strong> se ha realizado a entera satisfacción.</p>
                                     <div style="background-color: #f4f6f8; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-                                        <p style="margin: 0;">Adjunto a este correo encontrarás el <strong>Certificado de Validación en PDF</strong> que incluye la reflexión de la sesión y el sello de tu firma electrónica.</p>
+                                        <p style="margin: 0;">Adjunto a este correo encontrarás el <strong>Certificado de Validación en PDF</strong> que incluye la tarea asignada y el sello de tu firma electrónica.</p>
                                     </div>
                                     <p style="font-size: 12px; color: #666; margin-top: 30px;">Gracias por confiar en Caminos del Ser - Gestión Existencial.</p>
                                 </div>
                             </div>
                         `;
 
-                        // Email Psicólogo (Chevere y Detallado)
+                        // Email Psicólogo
                         const htmlTerapeuta = `
                             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
                                 <div style="background-color: #003366; padding: 20px; text-align: center;">
