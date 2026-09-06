@@ -316,8 +316,9 @@ export default async function handler(request, response) {
                 }
 
                 const recibosEnviados = dataHist.recibosEnviados || {};
-                if (recibosEnviados[data.evoId]) {
-                    return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado anteriormente.' });
+                // Con 'forzar: true' (botón Reenviar recibo) se salta el candado anti-duplicados.
+                if (recibosEnviados[data.evoId] && data.forzar !== true) {
+                    return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado. Usa "Reenviar recibo" para forzar el reenvío.' });
                 }
 
                 const resendApiKey = process.env.RESEND2_API_KEY;
