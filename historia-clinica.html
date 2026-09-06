@@ -592,8 +592,12 @@
                         <button onclick="actualizarPagoEvolucion()" id="btnUpdatePago" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition-colors shadow-sm h-[42px] mb-[1px]">
                             Guardar Pago
                         </button>
+                        <button onclick="reenviarReciboManual()" id="btnReenviarRecibo" title="Reenviar el recibo de pago al correo del paciente (con copia a ti)" class="bg-white border border-green-600 text-green-700 hover:bg-green-50 font-bold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm h-[42px] mb-[1px]">
+                            Reenviar recibo
+                        </button>
                     </div>
                     <div id="pagoSuccessMsg" class="hidden text-green-700 text-xs font-bold mt-3">¡Pago actualizado correctamente en la base de datos!</div>
+                    <div id="reciboMsg" class="hidden text-xs font-bold mt-2"></div>
                 </div>
 
                 <div id="modalAnexosInputBox" class="bg-[#f8f9fa] border border-[#d1d5db] rounded-xl p-5 relative overflow-hidden mt-6">
@@ -1662,7 +1666,12 @@
             try {
                 const patientId = new URLSearchParams(window.location.search).get('id');
                 const response = await fetch(`/api/historia?action=saveEvolucion&id=${patientId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pacienteId: patientId, evoluciones: evoluciones, strikes: currentStrikes }) });
-                if(response.ok){ renderTimeline(); document.getElementById('pagoSuccessMsg').classList.remove('hidden'); setTimeout(() => document.getElementById('pagoSuccessMsg').classList.add('hidden'), 3000); }
+                if(response.ok){
+                    renderTimeline();
+                    document.getElementById('pagoSuccessMsg').classList.remove('hidden');
+                    setTimeout(() => document.getElementById('pagoSuccessMsg').classList.add('hidden'), 3000);
+                    if (nuevoPagado && Number(nuevoValor) > 0) { enviarReciboPago(patientId, evoId); }
+                }
             } catch(e) { alert("Error al actualizar el pago."); } finally { btn.textContent = originalText; btn.disabled = false; }
         }
 
@@ -1694,6 +1703,58 @@
             }
         }
 
+        async function reenviarReciboManual() {
+            const evoId = document.getElementById('currentSessionIdModal').value;
+            const patientId = new URLSearchParams(window.location.search).get('id');
+            if (!evoId || !patientId) return;
+
+            const valorActual = Number(document.getElementById('modalEvoValor').value || 0);
+            if (!(valorActual > 0)) {
+                mostrarReciboMsg('La sesión no tiene un valor mayor a 0; no se puede generar recibo. Guarda primero un valor.', false);
+                return;
+            }
+            if (!confirm('¿Reenviar el recibo de pago al correo del paciente, con copia a ti?')) return;
+
+            const btn = document.getElementById('btnReenviarRecibo');
+            const originalText = btn.textContent; btn.disabled = true; btn.textContent = 'Enviando...';
+            try {
+                const resp = await fetch(`/api/historia?action=enviarReciboPago&id=${patientId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pacienteId: patientId, evoId, forzar: true })
+                });
+                const r = await resp.json().catch(() => ({}));
+                mostrarReciboMsg(r.message || (resp.ok ? 'Recibo enviado.' : 'No se pudo enviar el recibo.'), resp.ok);
+            } catch (e) {
+                mostrarReciboMsg('Error de red al reenviar el recibo.', false);
+            } finally {
+                btn.textContent = originalText; btn.disabled = false;
+            }
+        }
+
+        function mostrarReciboMsg(texto, ok) {
+            const el = document.getElementById('reciboMsg');
+            if (!el) return;
+            el.textContent = texto;
+            el.classList.remove('hidden', 'text-green-700', 'text-red-600');
+            el.classList.add(ok ? 'text-green-700' : 'text-red-600');
+            setTimeout(() => el.classList.add('hidden'), 6000);
+        }
+
+        async function enviarReciboPago(pacienteId, evoId) {
+            try {
+                const resp = await fetch(`/api/historia?action=enviarReciboPago&id=${pacienteId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pacienteId, evoId })
+                });
+                const r = await resp.json().catch(() => ({}));
+                console.log('[enviarReciboPago]', resp.status, r.message || '');
+            } catch (e) {
+                console.error('[enviarReciboPago] Error de red:', e);
+            }
+        }
+
         async function addEvolucion(id) {
             const fecha = document.getElementById('evoFecha').value;
             const valor = document.getElementById('evoValor').value || 0;
@@ -1720,6 +1781,7 @@
                 const response = await fetch(`/api/historia?action=saveEvolucion&id=${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pacienteId: id, evoluciones: evoluciones, strikes: currentStrikes }) });
                 if (response.ok) {
                     localStorage.removeItem(draftEvoKey);
+                    if (pagado && Number(valor) > 0) { enviarReciboPago(id, nuevaEvo.id); }
                     document.getElementById('evolucionForm').reset(); 
                     document.getElementById('evoFecha').valueAsDate = new Date(); 
                     document.getElementById('hasPrueba').checked = false; 
