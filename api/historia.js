@@ -282,6 +282,111 @@ export default async function handler(request, response) {
                 return response.status(200).json({ message: 'Firma guardada correctamente.' });
             }
 
+            // ============================================================
+            // ACCIÓN DEDICADA PARA EL RECIBO DE PAGO
+            // Homologada al flujo de la firma (saveEvoSignature):
+            // se dispara explícitamente, arma el PDF y envía con await.
+            // Idempotente: marca la sesión en el mapa "recibosEnviados"
+            // (guardado con merge, así el regrabado del arreglo de
+            // evoluciones no lo borra) para no duplicar recibos.
+            // ============================================================
+            if (action === 'enviarReciboPago') {
+                if (!data.pacienteId || !data.evoId) return response.status(400).json({ message: 'Faltan datos para el recibo.' });
+
+                const docRef = db.collection('historias_clinicas').doc(data.pacienteId);
+                const doc = await docRef.get();
+                if (!doc.exists) return response.status(404).json({ message: 'Historia no encontrada.' });
+
+                const dataHist = doc.data();
+                let fechaRecibo = "";
+                let valorRecibo = 0;
+
+                if (data.evoId === 'sesionCero') {
+                    fechaRecibo = dataHist.fechaSesionCero || new Date().toISOString().split('T')[0];
+                    valorRecibo = dataHist.valorSesionCero || 0;
+                } else {
+                    const evolucion = (dataHist.evoluciones || []).find(e => e.id === data.evoId);
+                    if (!evolucion) return response.status(404).json({ message: 'Evolución no encontrada.' });
+                    fechaRecibo = evolucion.fecha;
+                    valorRecibo = evolucion.valor || 0;
+                }
+
+                if (!(Number(valorRecibo) > 0)) {
+                    return response.status(200).json({ message: 'La sesión no tiene un valor mayor a 0; no se genera recibo.' });
+                }
+
+                const recibosEnviados = dataHist.recibosEnviados || {};
+                if (recibosEnviados[data.evoId]) {
+                    return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado anteriormente.' });
+                }
+
+                const resendApiKey = process.env.RESEND2_API_KEY;
+                if (!resendApiKey) {
+                    console.error('[enviarReciboPago] Falta RESEND2_API_KEY: no se puede enviar el recibo.');
+                    return response.status(500).json({ message: 'Servicio de correo no configurado.' });
+                }
+
+                const resend = new Resend(resendApiKey);
+                let emailPaciente = "";
+                let nombreCompleto = "";
+
+                const docIndiv = await db.collection('consents').doc(data.pacienteId).get();
+                if (docIndiv.exists) {
+                    emailPaciente = docIndiv.data().demograficos?.email;
+                    nombreCompleto = docIndiv.data().demograficos?.nombre;
+                } else {
+                    const docPareja = await db.collection('consents_parejas').doc(data.pacienteId).get();
+                    if (docPareja.exists) {
+                        emailPaciente = docPareja.data().paciente1?.email || docPareja.data().demograficos?.email1;
+                        nombreCompleto = docPareja.data().paciente1?.nombre || "Paciente";
+                    }
+                }
+
+                if (!emailPaciente) {
+                    console.error(`[enviarReciboPago] No se encontró email del paciente ${data.pacienteId}: recibo NO enviado.`);
+                    return response.status(200).json({ message: 'No se encontró el correo del paciente; el recibo no se envió.' });
+                }
+
+                const nombreSeguro = nombreCompleto || 'Paciente';
+                const fechaFormat = new Date(`${fechaRecibo}T12:00:00`).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+                const formatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+                const pdfBuffer = await crearPDFReciboCaja(nombreSeguro, fechaFormat, valorRecibo);
+
+                const htmlCorreo = `
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
+                        <div style="background-color: #003366; padding: 20px; text-align: center;">
+                            <h2 style="color: white; margin: 0;">Comprobante de Pago Electrónico</h2>
+                        </div>
+                        <div style="padding: 30px;">
+                            <h3 style="color: #003366;">Confirmación de Recaudo</h3>
+                            <p>Hola <strong>${nombreSeguro}</strong>,</p>
+                            <p>Hemos registrado exitosamente el pago por los servicios profesionales de psicología correspondientes a la sesión del <strong>${fechaFormat}</strong>.</p>
+                            <div style="background-color: #f4f6f8; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
+                                <p style="margin: 0; font-size: 16px;"><strong>Valor Pagado:</strong> ${formatter.format(Number(valorRecibo))}</p>
+                            </div>
+                            <p>Adjunto a este correo encontrarás el documento PDF que sirve como soporte de este recaudo para tus registros financieros o reembolsos con entidades de salud complementaria si aplica.</p>
+                            <p style="font-size: 12px; color: #666; margin-top: 30px;">Caminos del Ser - Psic. Jorge Arango Castaño</p>
+                        </div>
+                    </div>
+                `;
+
+                await resend.emails.send({
+                    from: 'Caminos del Ser - Finanzas <caminosdelser@emcotic.com>',
+                    to: emailPaciente,
+                    bcc: 'caminosdelser@emcotic.com',
+                    subject: `Comprobante de Pago - Sesión ${fechaFormat}`,
+                    html: htmlCorreo,
+                    attachments: [{ filename: `Recibo-CaminosDelSer-${fechaRecibo}.pdf`, content: Buffer.from(pdfBuffer) }]
+                });
+
+                await docRef.set({
+                    recibosEnviados: { [data.evoId]: new Date().toISOString() }
+                }, { merge: true });
+
+                console.log(`[enviarReciboPago] Recibo enviado a ${emailPaciente} (sesión ${fechaRecibo}, valor ${valorRecibo}).`);
+                return response.status(200).json({ message: 'Recibo enviado correctamente.' });
+            }
+
             switch (action) {
                 case 'saveHistoria':
                     if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID.' });
@@ -300,108 +405,15 @@ export default async function handler(request, response) {
                     return response.status(200).json({ message: 'Plan de trabajo guardado.' });
 
                 case 'saveEvolucion':
+                    // Ahora saveEvolucion SOLO guarda. El recibo se envía por la
+                    // acción dedicada 'enviarReciboPago', que el frontend dispara
+                    // en el momento de marcar la sesión como pagada.
                     if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID.' });
-
-                    let recibosAEnviar = [];
-
-                    const docActual = await db.collection('historias_clinicas').doc(data.pacienteId).get();
-                    let evosAnteriores = [];
-                    if (docActual.exists) {
-                        evosAnteriores = docActual.data().evoluciones || [];
-                    }
-
-                    if (data.evoluciones && Array.isArray(data.evoluciones)) {
-                        data.evoluciones.forEach(evoEntrante => {
-                            if (evoEntrante.pagado === true) {
-                                const evoPrevia = evosAnteriores.find(e => e.id === evoEntrante.id);
-                                if ((!evoPrevia || evoPrevia.pagado !== true) && Number(evoEntrante.valor) > 0) {
-                                    recibosAEnviar.push({
-                                        fecha: evoEntrante.fecha,
-                                        valor: evoEntrante.valor
-                                    });
-                                }
-                            }
-                        });
-                    }
-
-                    console.log(`[saveEvolucion] Recibos nuevos detectados para envío: ${recibosAEnviar.length}`);
-
                     await db.collection('historias_clinicas').doc(data.pacienteId).set({
                         evoluciones: data.evoluciones || [],
                         strikes: data.strikes || 0,
                         ultimaActualizacionEvo: new Date().toISOString()
                     }, { merge: true });
-
-                    // IMPORTANTE: en serverless (Vercel) hay que ESPERAR (await) el envío
-                    // antes de responder. Si no, la función se congela al retornar y los
-                    // correos "en background" nunca se envían.
-                    if (recibosAEnviar.length > 0) {
-                        const resendApiKey = process.env.RESEND2_API_KEY;
-                        if (!resendApiKey) {
-                            console.error('[saveEvolucion] Falta RESEND2_API_KEY: no se pueden enviar los recibos.');
-                        } else {
-                            const resend = new Resend(resendApiKey);
-                            let emailPaciente = "";
-                            let nombreCompleto = "";
-
-                            const docIndiv = await db.collection('consents').doc(data.pacienteId).get();
-                            if (docIndiv.exists) {
-                                emailPaciente = docIndiv.data().demograficos?.email;
-                                nombreCompleto = docIndiv.data().demograficos?.nombre;
-                            } else {
-                                const docPareja = await db.collection('consents_parejas').doc(data.pacienteId).get();
-                                if (docPareja.exists) {
-                                    emailPaciente = docPareja.data().paciente1?.email || docPareja.data().demograficos?.email1;
-                                    nombreCompleto = docPareja.data().paciente1?.nombre || "Paciente";
-                                }
-                            }
-
-                            if (!emailPaciente) {
-                                console.error(`[saveEvolucion] No se encontró email del paciente ${data.pacienteId}: recibos NO enviados.`);
-                            } else {
-                                const nombreSeguro = nombreCompleto || 'Paciente';
-                                const formatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
-
-                                try {
-                                    await Promise.all(recibosAEnviar.map(async (recibo) => {
-                                        const fechaFormat = new Date(`${recibo.fecha}T12:00:00`).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-                                        const pdfBuffer = await crearPDFReciboCaja(nombreSeguro, fechaFormat, recibo.valor);
-
-                                        const htmlCorreo = `
-                                            <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
-                                                <div style="background-color: #003366; padding: 20px; text-align: center;">
-                                                    <h2 style="color: white; margin: 0;">Comprobante de Pago Electrónico</h2>
-                                                </div>
-                                                <div style="padding: 30px;">
-                                                    <h3 style="color: #003366;">Confirmación de Recaudo</h3>
-                                                    <p>Hola <strong>${nombreSeguro}</strong>,</p>
-                                                    <p>Hemos registrado exitosamente el pago por los servicios profesionales de psicología correspondientes a la sesión del <strong>${fechaFormat}</strong>.</p>
-                                                    <div style="background-color: #f4f6f8; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-                                                        <p style="margin: 0; font-size: 16px;"><strong>Valor Pagado:</strong> ${formatter.format(Number(recibo.valor))}</p>
-                                                    </div>
-                                                    <p>Adjunto a este correo encontrarás el documento PDF que sirve como soporte de este recaudo para tus registros financieros o reembolsos con entidades de salud complementaria si aplica.</p>
-                                                    <p style="font-size: 12px; color: #666; margin-top: 30px;">Caminos del Ser - Psic. Jorge Arango Castaño</p>
-                                                </div>
-                                            </div>
-                                        `;
-
-                                        return resend.emails.send({
-                                            from: 'Caminos del Ser - Finanzas <caminosdelser@emcotic.com>',
-                                            to: emailPaciente,
-                                            bcc: 'caminosdelser@emcotic.com',
-                                            subject: `Comprobante de Pago - Sesión ${fechaFormat}`,
-                                            html: htmlCorreo,
-                                            attachments: [{ filename: `Recibo-CaminosDelSer-${recibo.fecha}.pdf`, content: Buffer.from(pdfBuffer) }]
-                                        });
-                                    }));
-                                    console.log(`[saveEvolucion] ${recibosAEnviar.length} recibo(s) enviado(s) a ${emailPaciente}.`);
-                                } catch (e) {
-                                    console.error("[saveEvolucion] Error enviando correos de recibo:", e);
-                                }
-                            }
-                        }
-                    }
-
                     return response.status(200).json({ message: 'Bitácora guardada.' });
 
                 case 'savePerfil':
