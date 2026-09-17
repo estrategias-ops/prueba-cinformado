@@ -224,7 +224,7 @@ export default async function handler(request, response) {
                     tareaSesionMail = evoluciones[evoIndex].tarea || evoluciones[evoIndex].cierre || 'No se consignó tarea.';
                 }
 
-                const resendApiKey = process.env.RESEND2_API_KEY;
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
                 if (resendApiKey) {
                     const resend = new Resend(resendApiKey);
                     let emailPaciente = "";
@@ -321,9 +321,9 @@ export default async function handler(request, response) {
                     return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado. Usa "Reenviar recibo" para forzar el reenvío.' });
                 }
 
-                const resendApiKey = process.env.RESEND2_API_KEY;
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
                 if (!resendApiKey) {
-                    console.error('[enviarReciboPago] Falta RESEND2_API_KEY: no se puede enviar el recibo.');
+                    console.error('[enviarReciboPago] Falta RESEND_EMCOTIC_API_KEY: no se puede enviar el recibo.');
                     return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 }
 
