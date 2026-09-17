@@ -263,7 +263,7 @@ export default async function handler(request, response) {
                         `;
 
                         await resend.emails.send({
-                            from: 'Caminos del Ser <caminosdelser@emcotic.com>',
+                            from: 'Caminos del Ser <cinformado@emcotic.com>',
                             to: emailPaciente,
                             subject: `✅ Certificado de Sesión Realizada - ${fechaSesionF}`,
                             html: htmlPaciente,
@@ -271,8 +271,8 @@ export default async function handler(request, response) {
                         });
 
                         await resend.emails.send({
-                            from: 'Sistema CInformado <caminosdelser@emcotic.com>',
-                            to: 'caminosdelser@emcotic.com',
+                            from: 'Sistema CInformado <cinformado@emcotic.com>',
+                            to: 'cinformado@emcotic.com',
                             subject: `✅ Validación de Sesión: ${nombreSeguro}`,
                             html: `<p>El paciente ha validado la sesión. Puedes revisar el certificado en tu bandeja.</p>`,
                             attachments: [{ filename: `Validacion-${nombreSeguro.replace(/\s+/g, '')}-${fechaSesionMail}.pdf`, content: Buffer.from(pdfBuffer) }]
@@ -372,9 +372,9 @@ export default async function handler(request, response) {
                 `;
 
                 await resend.emails.send({
-                    from: 'Caminos del Ser - Finanzas <caminosdelser@emcotic.com>',
+                    from: 'Caminos del Ser - Finanzas <cinformado@emcotic.com>',
                     to: emailPaciente,
-                    bcc: 'caminosdelser@emcotic.com',
+                    bcc: 'cinformado@emcotic.com',
                     subject: `Comprobante de Pago - Sesión ${fechaFormat}`,
                     html: htmlCorreo,
                     attachments: [{ filename: `Recibo-CaminosDelSer-${fechaRecibo}.pdf`, content: Buffer.from(pdfBuffer) }]
