@@ -153,7 +153,7 @@ export default async function handler(request, response) {
                 direccionConsultorio: direccionConsultorio || ''
             }, { merge: true });
 
-            const resendApiKey = process.env.RESEND2_API_KEY;
+            const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
             if (resendApiKey) {
                 const resend = new Resend(resendApiKey);
                 const icsDates = formatICSDate(fecha, hora);
@@ -315,7 +315,7 @@ export default async function handler(request, response) {
                 proximaCita: null
             }, { merge: true });
 
-            const resendApiKey = process.env.RESEND2_API_KEY;
+            const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
             if (resendApiKey && enviarCorreo && emailPaciente) {
                 const resend = new Resend(resendApiKey);
                 const primerNombre = nombrePaciente.split(' ')[0];
