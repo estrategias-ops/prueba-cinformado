@@ -309,7 +309,7 @@ export default async function handler(request, response) {
         if (request.method === 'POST') {
             const data = sanitizePayload(request.body);
             
-            const resendApiKey = process.env.RESEND2_API_KEY;
+            const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
             const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
             if (action === 'updateDemographics') {
