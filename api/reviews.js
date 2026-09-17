@@ -93,7 +93,7 @@ export default async function handler(request, response) {
                 return response.status(400).json({ message: 'Faltan datos del paciente para enviar el correo.' });
             }
 
-            const resendApiKey = process.env.RESEND2_API_KEY;
+            const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
             if (!resendApiKey) {
                 return response.status(500).json({ message: 'Error de configuración: Falta API Key de correos.' });
             }
