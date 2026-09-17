@@ -134,7 +134,7 @@ export default async function handler(request, response) {
             `;
 
             await resend.emails.send({
-                from: 'Caminos del Ser <caminosdelser@emcotic.com>',
+                from: 'Caminos del Ser <cinformado@emcotic.com>',
                 to: email,
                 subject: `⭐ ¿Cómo fue tu experiencia en Caminos del Ser?`,
                 html: htmlCorreo
