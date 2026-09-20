@@ -65,26 +65,78 @@ function formatearFechaLarga(isoString) {
     } catch(e) { return isoString; }
 }
 
-// Motor para escribir párrafos multilínea
-function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
-    const words = text.split(' ');
-    let line = '';
-    let y = startY;
-    for (const word of words) {
-        const testLine = line + word + ' ';
-        const testWidth = font.widthOfTextAtSize(testLine, size);
-        if (testWidth > maxWidth && line !== '') {
-            page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
-            y -= (size + 6); 
-            line = word + ' ';
-        } else {
-            line = testLine;
+// Motor para escribir párrafos multilínea JUSTIFICADOS (Full Justify)
+function escribirParrafoJustificado(page, text, font, size, maxWidth, startX, startY) {
+    const lines = [];
+    const paragraphs = text.split('\n');
+
+    // 1. Romper el texto en líneas que quepan en el maxWidth
+    for (const paragraph of paragraphs) {
+        const words = paragraph.split(' ');
+        let currentLine = [];
+        let currentWidth = 0;
+
+        for (const word of words) {
+            const wordWidth = font.widthOfTextAtSize(word, size);
+            // El espacio entre palabras (al menos 1 espacio)
+            const spaceWidth = font.widthOfTextAtSize(' ', size); 
+            
+            // Si la línea está vacía, añadimos la palabra. 
+            // Si no, verificamos si cabe la palabra + el espacio
+            if (currentLine.length === 0) {
+                currentLine.push(word);
+                currentWidth = wordWidth;
+            } else if (currentWidth + spaceWidth + wordWidth <= maxWidth) {
+                currentLine.push(word);
+                currentWidth += spaceWidth + wordWidth;
+            } else {
+                // La línea se llenó. Guardamos y empezamos una nueva.
+                lines.push({ words: currentLine, isLastOfParagraph: false });
+                currentLine = [word];
+                currentWidth = wordWidth;
+            }
+        }
+        // Añadimos la última línea del párrafo
+        if (currentLine.length > 0) {
+            lines.push({ words: currentLine, isLastOfParagraph: true });
         }
     }
-    if (line.trim() !== '') {
-        page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
-        y -= (size + 15); 
+
+    let y = startY;
+
+    // 2. Renderizar cada línea justificándola matemáticamente
+    for (const lineObj of lines) {
+        const lineWords = lineObj.words;
+        
+        // Si es la última línea del párrafo, o si solo tiene 1 palabra, se alinea a la izquierda normal
+        if (lineObj.isLastOfParagraph || lineWords.length === 1) {
+            const lineString = lineWords.join(' ');
+            page.drawText(lineString, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
+        } else {
+            // LÓGICA DE JUSTIFICACIÓN
+            // Calculamos el ancho de todas las palabras juntas (sin espacios)
+            const totalWordsWidth = lineWords.reduce((sum, word) => sum + font.widthOfTextAtSize(word, size), 0);
+            
+            // Calculamos cuánto espacio libre queda para distribuir
+            const emptySpaceToDistribute = maxWidth - totalWordsWidth;
+            
+            // Calculamos cuánto debe medir cada espacio entre palabras
+            const spaceBetweenWords = emptySpaceToDistribute / (lineWords.length - 1);
+            
+            let currentX = startX;
+            for (let i = 0; i < lineWords.length; i++) {
+                page.drawText(lineWords[i], { x: currentX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
+                // Avanzamos el cursor X el ancho de la palabra + el espacio calculado (salvo en la última palabra)
+                if (i < lineWords.length - 1) {
+                    currentX += font.widthOfTextAtSize(lineWords[i], size) + spaceBetweenWords;
+                }
+            }
+        }
+        
+        // Avanzamos Y para la siguiente línea. Si es final de párrafo, un poco más de espacio.
+        y -= lineObj.isLastOfParagraph ? (size + 15) : (size + 6);
     }
+    
     return y;
 }
 
@@ -123,10 +175,11 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
     const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const textoFecha = `Dada en Barranquilla, a los ${hoy.getDate()} días del mes de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}.`;
 
-    y = escribirParrafo(page, parrafo1, font, 11, maxWidth, margin, y);
-    y = escribirParrafo(page, parrafo2, font, 11, maxWidth, margin, y);
-    y = escribirParrafo(page, parrafo3, font, 11, maxWidth, margin, y);
-    y = escribirParrafo(page, textoFecha, font, 11, maxWidth, margin, y);
+    // Utilizando el nuevo motor justificado
+    y = escribirParrafoJustificado(page, parrafo1, font, 11, maxWidth, margin, y);
+    y = escribirParrafoJustificado(page, parrafo2, font, 11, maxWidth, margin, y);
+    y = escribirParrafoJustificado(page, parrafo3, font, 11, maxWidth, margin, y);
+    y = escribirParrafoJustificado(page, textoFecha, font, 11, maxWidth, margin, y);
 
     y -= 80;
 
@@ -144,7 +197,7 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
             const escalaFirma = alturaFirma / firmaImage.height;
             const anchoFirma = firmaImage.width * escalaFirma;
             
-            // Ajuste exacto de coordenadas (-26 en Y, -5 en X)
+            // Ajuste fino: Se mantiene el yTextoNombre - 26 para que la 'C' toque la 'o'
             page.drawImage(firmaImage, { 
                 x: margin - 5, 
                 y: yTextoNombre - 26, 
@@ -191,6 +244,7 @@ async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgen
     page.drawText('Tarea Consignada:', { x: margin, y, font: boldFont, size: 11, color: brandColor });
     y -= 20;
 
+    // Aquí usamos un wrap normal (alineado a izquierda) ya que es un texto corto/cita
     const words = (tarea || 'Sin registro de tarea.').split(' ');
     let line = '';
     page.drawText('"', { x: margin, y, font: font, size: 11, color: rgb(0.2, 0.2, 0.2) });
