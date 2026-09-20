@@ -5,7 +5,8 @@ import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Buffer } from 'buffer';
 
-// Descarga logoprincipal.png desde el propio sitio para poder
+// Descarga logoprincipal.png desde el propio sitio (misma raíz donde el
+// frontend lo referencia como <img src="logoprincipal.png">) para poder
 // incrustarlo en los PDFs. Si algo falla, devuelve null y el PDF se genera
 // sin logo (nunca rompe el envío).
 async function obtenerLogoBytes(request) {
@@ -19,6 +20,22 @@ async function obtenerLogoBytes(request) {
         return new Uint8Array(ab);
     } catch (e) {
         console.error('[logo] Error descargando el logo:', e.message);
+        return null;
+    }
+}
+// NUEVO: Descarga la firma del psicólogo (firma.png)
+async function obtenerFirmaBytes(request) {
+    try {
+        const proto = request.headers['x-forwarded-proto'] || 'https';
+        const host = request.headers['x-forwarded-host'] || request.headers.host;
+        // CORRECCIÓN: Apuntando a firma.png
+        const url = process.env.FIRMA_URL || `${proto}://${host}/firma.png`;
+        const res = await fetch(url);
+        if (!res.ok) { console.error('[firma] No se pudo descargar la firma. Status', res.status, url); return null; }
+        const ab = await res.arrayBuffer();
+        return new Uint8Array(ab);
+    } catch (e) {
+        console.error('[firma] Error descargando la firma:', e.message);
         return null;
     }
 }
@@ -73,10 +90,7 @@ function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
     return y;
 }
 
-// =======================================================
-// NUEVO: GENERADOR DE PDF DE CONSTANCIA DE ASISTENCIA
-// =======================================================
-async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoBytes) {
+async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoBytes, firmaBytes) {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage([612, 792]); // Tamaño Carta (Letter)
     const { width, height } = page.getSize();
@@ -125,6 +139,27 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
 
     // Bloque de Firma
     y -= 80;
+
+    // Incrustar firma si existe
+    if (firmaBytes) {
+        try {
+            const firmaImage = await pdfDoc.embedPng(firmaBytes);
+            // Ajustar altura de la firma a unos 60px y calcular ancho proporcional
+            const alturaFirma = 60;
+            const escalaFirma = alturaFirma / firmaImage.height;
+            const anchoFirma = firmaImage.width * escalaFirma;
+            // Dibujar la firma centrada sobre la línea (margin + 100 es el centro de la línea de 200px)
+            page.drawImage(firmaImage, { 
+                x: margin + 100 - (anchoFirma / 2), 
+                y: y, 
+                width: anchoFirma, 
+                height: alturaFirma 
+            });
+        } catch (e) {
+            console.error('[firma] No se pudo incrustar la firma en el PDF:', e.message);
+        }
+    }
+
     page.drawLine({ start: { x: margin, y }, end: { x: margin + 200, y }, thickness: 1 });
     y -= 15;
     page.drawText('JORGE ARANGO CASTAÑO', { x: margin, y, font: boldFont, size: 11 });
@@ -391,11 +426,12 @@ export default async function handler(request, response) {
                     textoEstado = `finalizado el ${formatearFechaLarga(fechaFinBruta)}`;
                 }
 
-                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY; // <-- Se ajusta al original de este archivo
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY; // <-- Ajustado al env original
                 if (!resendApiKey) return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 
                 const logoBytes = await obtenerLogoBytes(request);
-                const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes);
+                const firmaBytes = await obtenerFirmaBytes(request); // Extraemos la firma
+                const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes, firmaBytes); // Pasamos la firma al PDF
 
                 const htmlCorreo = `
                     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
