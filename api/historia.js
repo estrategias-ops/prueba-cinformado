@@ -3,7 +3,7 @@ import { verifyAuth } from '../lib/auth.js';
 import { sanitizePayload } from '../lib/sanitize.js';
 import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { Buffer } from 'buffer';firma
+import { Buffer } from 'buffer';
 
 // Descarga logoprincipal.png desde el propio sitio (misma raíz donde el
 // frontend lo referencia como <img src="logoprincipal.png">) para poder
