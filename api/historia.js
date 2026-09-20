@@ -5,10 +5,7 @@ import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Buffer } from 'buffer';
 
-// Descarga logoprincipal.png desde el propio sitio (misma raíz donde el
-// frontend lo referencia como <img src="logoprincipal.png">) para poder
-// incrustarlo en los PDFs. Si algo falla, devuelve null y el PDF se genera
-// sin logo (nunca rompe el envío).
+// Descarga logoprincipal.png desde el propio sitio
 async function obtenerLogoBytes(request) {
     try {
         const proto = request.headers['x-forwarded-proto'] || 'https';
@@ -40,7 +37,7 @@ async function obtenerFirmaBytes(request) {
     }
 }
 
-// Dibuja el logo arriba a la derecha, respetando su proporción. No rompe si falla.
+// Dibuja el logo arriba a la derecha
 async function dibujarLogo(pdfDoc, page, logoBytes, alturaObjetivo, margin) {
     if (!logoBytes) return;
     try {
@@ -54,7 +51,7 @@ async function dibujarLogo(pdfDoc, page, logoBytes, alturaObjetivo, margin) {
     }
 }
 
-// Función auxiliar para formatear fechas largas en español para la constancia
+// Función auxiliar para formatear fechas largas en español
 function formatearFechaLarga(isoString) {
     if (!isoString) return 'fecha no registrada';
     const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -63,11 +60,12 @@ function formatearFechaLarga(isoString) {
         const dia = parseInt(partes[2], 10);
         const mes = meses[parseInt(partes[1], 10) - 1];
         const anio = partes[0];
+        if (!dia || !mes || !anio) return 'fecha no registrada';
         return `${dia} de ${mes} de ${anio}`;
     } catch(e) { return isoString; }
 }
 
-// Motor para escribir párrafos multilínea justificados a la izquierda
+// Motor para escribir párrafos multilínea
 function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
     const words = text.split(' ');
     let line = '';
@@ -77,7 +75,7 @@ function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
         const testWidth = font.widthOfTextAtSize(testLine, size);
         if (testWidth > maxWidth && line !== '') {
             page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
-            y -= (size + 6); // Interlineado
+            y -= (size + 6); 
             line = word + ' ';
         } else {
             line = testLine;
@@ -85,14 +83,14 @@ function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
     }
     if (line.trim() !== '') {
         page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
-        y -= (size + 15); // Salto de párrafo
+        y -= (size + 15); 
     }
     return y;
 }
 
 async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoBytes, firmaBytes) {
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage([612, 792]); // Tamaño Carta (Letter)
+    let page = pdfDoc.addPage([612, 792]); 
     const { width, height } = page.getSize();
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -103,7 +101,6 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
 
     await dibujarLogo(pdfDoc, page, logoBytes, 50, margin);
 
-    // Membrete profesional
     page.drawText('Psic. Jorge Arango Castaño', { x: margin, y, font: boldFont, size: 14, color: rgb(0, 0.2, 0.4) });
     y -= 15;
     page.drawText('Gestión Existencial & PNL', { x: margin, y, font: font, size: 10, color: rgb(0.4, 0.4, 0.4) });
@@ -112,55 +109,42 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
     
     y -= 80;
 
-    // Título Central
     const tituloStr = 'EL SUSCRITO PSICÓLOGO HACE CONSTAR QUE:';
     const tituloWidth = boldFont.widthOfTextAtSize(tituloStr, 12);
     page.drawText(tituloStr, { x: (width - tituloWidth) / 2, y, font: boldFont, size: 12 });
     
     y -= 50;
 
-    // Construcción de los párrafos según tu redacción legal
     const parrafo1 = `El (la) señor(a) ${datosPaciente.nombre}, identificado(a) con ${datosPaciente.tipoDoc} No. ${datosPaciente.numDoc}, ha asistido a un proceso de atención psicológica a cargo del suscrito profesional, iniciado el ${fechaInicio} y ${textoEstado}.`;
-    
     const parrafo2 = `En cumplimiento del deber de confidencialidad y secreto profesional consagrado en la Ley 1090 de 2006 —que reglamenta el ejercicio de la Psicología en Colombia y contiene el Código Deontológico y Bioético de la profesión—, esta constancia se limita a certificar dicha asistencia y mantiene absoluta reserva sobre los motivos de consulta, el contenido de las sesiones, la modalidad, la frecuencia y la evolución del proceso.`;
-    
     const parrafo3 = `El presente documento se expide a solicitud expresa de la persona interesada, para los fines que ella estime pertinentes.`;
 
-    // Fechas actuales para la firma
     const hoy = new Date();
     const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     const textoFecha = `Dada en Barranquilla, a los ${hoy.getDate()} días del mes de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}.`;
 
-    // Renderizar párrafos
     y = escribirParrafo(page, parrafo1, font, 11, maxWidth, margin, y);
     y = escribirParrafo(page, parrafo2, font, 11, maxWidth, margin, y);
     y = escribirParrafo(page, parrafo3, font, 11, maxWidth, margin, y);
     y = escribirParrafo(page, textoFecha, font, 11, maxWidth, margin, y);
 
-    // ==========================================
-    // BLOQUE DE FIRMA REDISEÑADO
-    // ==========================================
-    y -= 80; // Espacio antes de la firma
+    y -= 80;
 
-    // Primero dibujamos el texto y la línea para que queden "debajo" si la firma es PNG transparente
     const yLinea = y;
-    
     const yTextoNombre = yLinea - 15;
     page.drawText('Jorge Arango Castaño', { x: margin, y: yTextoNombre, font: boldFont, size: 14 }); 
     
     const yTextoCargo = yTextoNombre - 15;
     page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y: yTextoCargo, font: font, size: 11, color: rgb(0, 0.4, 0.8) }); 
 
-    // Luego incrustamos la firma superpuesta
     if (firmaBytes) {
         try {
             const firmaImage = await pdfDoc.embedPng(firmaBytes);
-            // Ajustamos la altura para hacerla más grande
             const alturaFirma = 80; 
             const escalaFirma = alturaFirma / firmaImage.height;
             const anchoFirma = firmaImage.width * escalaFirma;
             
-            // Ajuste fino: Bajamos la firma restando más a la coordenada Y para que roce sutilmente la 'o'
+            // Ajuste exacto de coordenadas (-26 en Y, -5 en X)
             page.drawImage(firmaImage, { 
                 x: margin - 5, 
                 y: yTextoNombre - 26, 
@@ -368,9 +352,6 @@ export default async function handler(request, response) {
         if (request.method === 'POST') {
             const data = sanitizePayload(request.body);
 
-            // ============================================================
-            // NUEVO: GUARDAR ESTADO DEL PROCESO
-            // ============================================================
             if (action === 'saveEstadoProceso') {
                 if (!data.pacienteId || !data.estadoProceso) return response.status(400).json({ message: 'Faltan datos de estado.' });
                 await db.collection('historias_clinicas').doc(data.pacienteId).set({
@@ -379,9 +360,6 @@ export default async function handler(request, response) {
                 return response.status(200).json({ message: 'Estado del proceso actualizado.' });
             }
 
-            // ============================================================
-            // NUEVO: ENVIAR CONSTANCIA DE ASISTENCIA
-            // ============================================================
             if (action === 'enviarConstancia') {
                 if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID del paciente.' });
 
@@ -417,25 +395,35 @@ export default async function handler(request, response) {
                     return response.status(400).json({ message: 'El paciente no tiene un correo válido registrado.' });
                 }
 
-                // Cálculo inteligente de fechas
-                const fechaInicioBruta = histData.fechaSesionCero || (docIndiv.exists ? docIndiv.data().fechaDiligenciamiento : null);
-                const fechaInicioTexto = formatearFechaLarga(fechaInicioBruta);
+                let todasLasFechas = [];
+                if (histData.fechaSesionCero) {
+                    todasLasFechas.push(histData.fechaSesionCero.split('T')[0]);
+                }
+                if (histData.evoluciones && histData.evoluciones.length > 0) {
+                    histData.evoluciones.forEach(evo => {
+                        if (evo.fecha) todasLasFechas.push(evo.fecha.split('T')[0]);
+                    });
+                }
 
+                let fechaInicioBruta = null;
+                let fechaFinBruta = null;
+
+                if (todasLasFechas.length > 0) {
+                    todasLasFechas.sort(); 
+                    fechaInicioBruta = todasLasFechas[0];
+                    fechaFinBruta = todasLasFechas[todasLasFechas.length - 1];
+                } else {
+                    fechaInicioBruta = docIndiv.exists ? docIndiv.data().fechaDiligenciamiento : null;
+                    fechaFinBruta = fechaInicioBruta;
+                }
+
+                const fechaInicioTexto = formatearFechaLarga(fechaInicioBruta);
                 const estadoProceso = histData.estadoProceso || 'Activo';
                 let textoEstado = '';
 
                 if (estadoProceso === 'Activo') {
                     textoEstado = 'vigente a la fecha de expedición de la presente constancia';
                 } else {
-                    // Buscar la fecha de la última sesión para Finalizado o Suspendido
-                    let fechaFinBruta = histData.fechaSesionCero || '';
-                    if (histData.evoluciones && histData.evoluciones.length > 0) {
-                        const fechasEvo = histData.evoluciones.map(e => e.fecha).filter(Boolean);
-                        if (fechasEvo.length > 0) {
-                            fechasEvo.sort(); // Ordenar alfabéticamente (YYYY-MM-DD)
-                            fechaFinBruta = fechasEvo[fechasEvo.length - 1]; // Toma la más reciente
-                        }
-                    }
                     textoEstado = `finalizado el ${formatearFechaLarga(fechaFinBruta)}`;
                 }
 
@@ -443,9 +431,8 @@ export default async function handler(request, response) {
                 if (!resendApiKey) return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 
                 const logoBytes = await obtenerLogoBytes(request);
-                const firmaBytes = await obtenerFirmaBytes(request); // Descargamos la firma
+                const firmaBytes = await obtenerFirmaBytes(request); 
                 
-                // Pasamos la firma a la función generadora
                 const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes, firmaBytes);
 
                 const htmlCorreo = `
@@ -675,7 +662,6 @@ export default async function handler(request, response) {
                     recibosEnviados: { [data.evoId]: new Date().toISOString() }
                 }, { merge: true });
 
-                console.log(`[enviarReciboPago] Recibo enviado a ${emailPaciente} (sesión ${fechaRecibo}, valor ${valorRecibo}). id Resend: ${envioData?.id || 'N/D'}`);
                 return response.status(200).json({ message: 'Recibo enviado correctamente.' });
             }
 
@@ -697,8 +683,6 @@ export default async function handler(request, response) {
                     return response.status(200).json({ message: 'Plan de trabajo guardado.' });
 
                 case 'saveEvolucion':
-                    // saveEvolucion SOLO guarda. El recibo se envía por la acción
-                    // dedicada 'enviarReciboPago', que el frontend dispara al marcar pagado.
                     if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID.' });
                     await db.collection('historias_clinicas').doc(data.pacienteId).set({
                         evoluciones: data.evoluciones || [],
