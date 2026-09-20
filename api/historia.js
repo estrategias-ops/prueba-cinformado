@@ -144,13 +144,12 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
 
     // Primero dibujamos el texto y la línea para que queden "debajo" si la firma es PNG transparente
     const yLinea = y;
-    // page.drawLine({ start: { x: margin, y: yLinea }, end: { x: margin + 200, y: yLinea }, thickness: 1 }); // Comentado si prefieres sin línea, como tu imagen 2
     
     const yTextoNombre = yLinea - 15;
-    page.drawText('Jorge Arango Castaño', { x: margin, y: yTextoNombre, font: boldFont, size: 14 }); // Aumentado el tamaño como en la imagen
+    page.drawText('Jorge Arango Castaño', { x: margin, y: yTextoNombre, font: boldFont, size: 14 }); 
     
     const yTextoCargo = yTextoNombre - 15;
-    page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y: yTextoCargo, font: font, size: 11, color: rgb(0, 0.4, 0.8) }); // Azul como en la imagen 2
+    page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y: yTextoCargo, font: font, size: 11, color: rgb(0, 0.4, 0.8) }); 
 
     // Luego incrustamos la firma superpuesta
     if (firmaBytes) {
@@ -440,7 +439,7 @@ export default async function handler(request, response) {
                     textoEstado = `finalizado el ${formatearFechaLarga(fechaFinBruta)}`;
                 }
 
-                const resendApiKey = process.env.RESEND2_API_KEY;
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
                 if (!resendApiKey) return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 
                 const logoBytes = await obtenerLogoBytes(request);
@@ -465,9 +464,9 @@ export default async function handler(request, response) {
 
                 const resend = new Resend(resendApiKey);
                 const { error: envioError } = await resend.emails.send({
-                    from: 'Psic. Jorge Arango Castaño <psic@jorgearangoc.com>',
+                    from: 'Psic. Jorge Arango Castaño <cinformado@emcotic.com>',
                     to: datosPaciente.email,
-                    bcc: 'psic@jorgearangoc.com',
+                    bcc: 'cinformado@emcotic.com',
                     subject: `📄 Constancia de Asistencia a Psicología - ${datosPaciente.nombre}`,
                     html: htmlCorreo,
                     attachments: [{ filename: `Constancia_Asistencia_${datosPaciente.nombre.replace(/\s+/g, '_')}.pdf`, content: Buffer.from(pdfBuffer) }]
@@ -514,7 +513,7 @@ export default async function handler(request, response) {
                     tareaSesionMail = evoluciones[evoIndex].tarea || evoluciones[evoIndex].cierre || 'No se consignó tarea.';
                 }
 
-                const resendApiKey = process.env.RESEND2_API_KEY;
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
                 if (resendApiKey) {
                     const resend = new Resend(resendApiKey);
                     let emailPaciente = "";
@@ -555,7 +554,7 @@ export default async function handler(request, response) {
                         `;
 
                         const { error: errFirmaPaciente } = await resend.emails.send({
-                            from: 'Psic. Jorge Arango Castaño <psic@jorgearangoc.com>',
+                            from: 'Psic. Jorge Arango Castaño <cinformado@emcotic.com>',
                             to: emailPaciente,
                             subject: `✅ Certificado de Sesión Realizada - ${fechaSesionF}`,
                             html: htmlPaciente,
@@ -564,8 +563,8 @@ export default async function handler(request, response) {
                         if (errFirmaPaciente) console.error('[saveEvoSignature] Resend rechazó el correo al paciente:', errFirmaPaciente);
 
                         const { error: errFirmaPsico } = await resend.emails.send({
-                            from: 'Sistema CInformado <psic@jorgearangoc.com>',
-                            to: 'psic@jorgearangoc.com',
+                            from: 'Sistema CInformado <cinformado@emcotic.com>',
+                            to: 'cinformado@emcotic.com',
                             subject: `✅ Validación de Sesión: ${nombreSeguro}`,
                             html: `<p>El paciente ha validado la sesión. Puedes revisar el certificado en tu bandeja.</p>`,
                             attachments: [{ filename: `Validacion-${nombreSeguro.replace(/\s+/g, '')}-${fechaSesionMail}.pdf`, content: Buffer.from(pdfBuffer) }]
@@ -606,10 +605,10 @@ export default async function handler(request, response) {
                     return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado. Usa "Reenviar recibo" para forzar el reenvío.' });
                 }
 
-                const resendApiKey = process.env.RESEND2_API_KEY;
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
                 if (!resendApiKey) {
-                    console.error('[enviarReciboPago] Falta RESEND2_API_KEY: no se puede enviar el recibo.');
-                    return response.status(500).json({ message: 'Servicio de correo no configurado (falta RESEND2_API_KEY en este proyecto).' });
+                    console.error('[enviarReciboPago] Falta RESEND_EMCOTIC_API_KEY: no se puede enviar el recibo.');
+                    return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 }
 
                 const resend = new Resend(resendApiKey);
@@ -658,9 +657,9 @@ export default async function handler(request, response) {
                 `;
 
                 const { data: envioData, error: envioError } = await resend.emails.send({
-                    from: 'Psic. Jorge Arango Castaño - Finanzas <psic@jorgearangoc.com>',
+                    from: 'Psic. Jorge Arango Castaño - Finanzas <cinformado@emcotic.com>',
                     to: emailPaciente,
-                    bcc: 'psic@jorgearangoc.com',
+                    bcc: 'cinformado@emcotic.com',
                     subject: `Comprobante de Pago - Sesión ${fechaFormat}`,
                     html: htmlCorreo,
                     attachments: [{ filename: `Recibo-${fechaRecibo}.pdf`, content: Buffer.from(pdfBuffer) }]
