@@ -5,6 +5,135 @@ import { Resend } from 'resend';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Buffer } from 'buffer';
 
+// Descarga logoprincipal.png desde el propio sitio para poder
+// incrustarlo en los PDFs. Si algo falla, devuelve null y el PDF se genera
+// sin logo (nunca rompe el envío).
+async function obtenerLogoBytes(request) {
+    try {
+        const proto = request.headers['x-forwarded-proto'] || 'https';
+        const host = request.headers['x-forwarded-host'] || request.headers.host;
+        const url = process.env.LOGO_URL || `${proto}://${host}/logoprincipal.png`;
+        const res = await fetch(url);
+        if (!res.ok) { console.error('[logo] No se pudo descargar el logo. Status', res.status, url); return null; }
+        const ab = await res.arrayBuffer();
+        return new Uint8Array(ab);
+    } catch (e) {
+        console.error('[logo] Error descargando el logo:', e.message);
+        return null;
+    }
+}
+
+// Dibuja el logo arriba a la derecha, respetando su proporción. No rompe si falla.
+async function dibujarLogo(pdfDoc, page, logoBytes, alturaObjetivo, margin) {
+    if (!logoBytes) return;
+    try {
+        const { width, height } = page.getSize();
+        const logo = await pdfDoc.embedPng(logoBytes);
+        const escala = alturaObjetivo / logo.height;
+        const w = logo.width * escala;
+        page.drawImage(logo, { x: width - margin - w, y: height - 18 - alturaObjetivo, width: w, height: alturaObjetivo });
+    } catch (e) {
+        console.error('[logo] No se pudo incrustar el logo en el PDF:', e.message);
+    }
+}
+
+// Función auxiliar para formatear fechas largas en español para la constancia
+function formatearFechaLarga(isoString) {
+    if (!isoString) return 'fecha no registrada';
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    try {
+        const partes = isoString.split('T')[0].split('-');
+        const dia = parseInt(partes[2], 10);
+        const mes = meses[parseInt(partes[1], 10) - 1];
+        const anio = partes[0];
+        return `${dia} de ${mes} de ${anio}`;
+    } catch(e) { return isoString; }
+}
+
+// Motor para escribir párrafos multilínea justificados a la izquierda
+function escribirParrafo(page, text, font, size, maxWidth, startX, startY) {
+    const words = text.split(' ');
+    let line = '';
+    let y = startY;
+    for (const word of words) {
+        const testLine = line + word + ' ';
+        const testWidth = font.widthOfTextAtSize(testLine, size);
+        if (testWidth > maxWidth && line !== '') {
+            page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
+            y -= (size + 6); // Interlineado
+            line = word + ' ';
+        } else {
+            line = testLine;
+        }
+    }
+    if (line.trim() !== '') {
+        page.drawText(line, { x: startX, y, font, size, color: rgb(0.1, 0.1, 0.1) });
+        y -= (size + 15); // Salto de párrafo
+    }
+    return y;
+}
+
+// =======================================================
+// NUEVO: GENERADOR DE PDF DE CONSTANCIA DE ASISTENCIA
+// =======================================================
+async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoBytes) {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage([612, 792]); // Tamaño Carta (Letter)
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const margin = 60;
+    const maxWidth = width - 2 * margin;
+    let y = height - 60;
+
+    await dibujarLogo(pdfDoc, page, logoBytes, 50, margin);
+
+    // Membrete profesional
+    page.drawText('Psic. Jorge Arango Castaño', { x: margin, y, font: boldFont, size: 14, color: rgb(0, 0.2, 0.4) });
+    y -= 15;
+    page.drawText('Gestión Existencial & PNL', { x: margin, y, font: font, size: 10, color: rgb(0.4, 0.4, 0.4) });
+    y -= 15;
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: rgb(0, 0.2, 0.4) });
+    
+    y -= 80;
+
+    // Título Central
+    const tituloStr = 'EL SUSCRITO PSICÓLOGO HACE CONSTAR QUE:';
+    const tituloWidth = boldFont.widthOfTextAtSize(tituloStr, 12);
+    page.drawText(tituloStr, { x: (width - tituloWidth) / 2, y, font: boldFont, size: 12 });
+    
+    y -= 50;
+
+    // Construcción de los párrafos según tu redacción legal
+    const parrafo1 = `El (la) señor(a) ${datosPaciente.nombre}, identificado(a) con ${datosPaciente.tipoDoc} No. ${datosPaciente.numDoc}, ha asistido a un proceso de atención psicológica a cargo del suscrito profesional, iniciado el ${fechaInicio} y ${textoEstado}.`;
+    
+    const parrafo2 = `En cumplimiento del deber de confidencialidad y secreto profesional consagrado en la Ley 1090 de 2006 —que reglamenta el ejercicio de la Psicología en Colombia y contiene el Código Deontológico y Bioético de la profesión—, esta constancia se limita a certificar dicha asistencia y mantiene absoluta reserva sobre los motivos de consulta, el contenido de las sesiones, la modalidad, la frecuencia y la evolución del proceso.`;
+    
+    const parrafo3 = `El presente documento se expide a solicitud expresa de la persona interesada, para los fines que ella estime pertinentes.`;
+
+    // Fechas actuales para la firma
+    const hoy = new Date();
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const textoFecha = `Dada en Barranquilla, a los ${hoy.getDate()} días del mes de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}.`;
+
+    // Renderizar párrafos
+    y = escribirParrafo(page, parrafo1, font, 11, maxWidth, margin, y);
+    y = escribirParrafo(page, parrafo2, font, 11, maxWidth, margin, y);
+    y = escribirParrafo(page, parrafo3, font, 11, maxWidth, margin, y);
+    y = escribirParrafo(page, textoFecha, font, 11, maxWidth, margin, y);
+
+    // Bloque de Firma
+    y -= 80;
+    page.drawLine({ start: { x: margin, y }, end: { x: margin + 200, y }, thickness: 1 });
+    y -= 15;
+    page.drawText('JORGE ARANGO CASTAÑO', { x: margin, y, font: boldFont, size: 11 });
+    y -= 15;
+    page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y, font: font, size: 10 });
+
+    return await pdfDoc.save();
+}
+
 async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgent) {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage();
@@ -190,6 +319,116 @@ export default async function handler(request, response) {
 
         if (request.method === 'POST') {
             const data = sanitizePayload(request.body);
+
+            // ============================================================
+            // NUEVO: GUARDAR ESTADO DEL PROCESO
+            // ============================================================
+            if (action === 'saveEstadoProceso') {
+                if (!data.pacienteId || !data.estadoProceso) return response.status(400).json({ message: 'Faltan datos de estado.' });
+                await db.collection('historias_clinicas').doc(data.pacienteId).set({
+                    estadoProceso: data.estadoProceso
+                }, { merge: true });
+                return response.status(200).json({ message: 'Estado del proceso actualizado.' });
+            }
+
+            // ============================================================
+            // NUEVO: ENVIAR CONSTANCIA DE ASISTENCIA
+            // ============================================================
+            if (action === 'enviarConstancia') {
+                if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID del paciente.' });
+
+                const docRef = db.collection('historias_clinicas').doc(data.pacienteId);
+                const docHist = await docRef.get();
+                const histData = docHist.exists ? docHist.data() : {};
+
+                const docIndiv = await db.collection('consents').doc(data.pacienteId).get();
+                let datosPaciente = { nombre: '', email: '', tipoDoc: '', numDoc: '' };
+
+                if (docIndiv.exists) {
+                    const demo = docIndiv.data().demograficos || {};
+                    datosPaciente = {
+                        nombre: demo.nombre || 'Paciente',
+                        email: demo.email || '',
+                        tipoDoc: demo.tipoDocumento || 'CC',
+                        numDoc: demo.documentoIdentidad || 'N/A'
+                    };
+                } else {
+                    const docPareja = await db.collection('consents_parejas').doc(data.pacienteId).get();
+                    if (docPareja.exists) {
+                        const d = docPareja.data();
+                        datosPaciente = {
+                            nombre: d.paciente1?.nombre || "Paciente",
+                            email: d.paciente1?.email || d.demograficos?.email1 || '',
+                            tipoDoc: d.paciente1?.tipoDocumento || 'CC',
+                            numDoc: d.paciente1?.documentoIdentidad || 'N/A'
+                        };
+                    }
+                }
+
+                if (!datosPaciente.email) {
+                    return response.status(400).json({ message: 'El paciente no tiene un correo válido registrado.' });
+                }
+
+                // Cálculo inteligente de fechas
+                const fechaInicioBruta = histData.fechaSesionCero || (docIndiv.exists ? docIndiv.data().fechaDiligenciamiento : null);
+                const fechaInicioTexto = formatearFechaLarga(fechaInicioBruta);
+
+                const estadoProceso = histData.estadoProceso || 'Activo';
+                let textoEstado = '';
+
+                if (estadoProceso === 'Activo') {
+                    textoEstado = 'vigente a la fecha de expedición de la presente constancia';
+                } else {
+                    // Buscar la fecha de la última sesión para Finalizado o Suspendido
+                    let fechaFinBruta = histData.fechaSesionCero || '';
+                    if (histData.evoluciones && histData.evoluciones.length > 0) {
+                        const fechasEvo = histData.evoluciones.map(e => e.fecha).filter(Boolean);
+                        if (fechasEvo.length > 0) {
+                            fechasEvo.sort(); // Ordenar alfabéticamente (YYYY-MM-DD)
+                            fechaFinBruta = fechasEvo[fechasEvo.length - 1]; // Toma la más reciente
+                        }
+                    }
+                    textoEstado = `finalizado el ${formatearFechaLarga(fechaFinBruta)}`;
+                }
+
+                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY; // <-- Se ajusta al original de este archivo
+                if (!resendApiKey) return response.status(500).json({ message: 'Servicio de correo no configurado.' });
+                
+                const logoBytes = await obtenerLogoBytes(request);
+                const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes);
+
+                const htmlCorreo = `
+                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
+                        <div style="background-color: #003366; padding: 20px; text-align: center;">
+                            <h2 style="color: white; margin: 0;">Constancia de Vinculación</h2>
+                        </div>
+                        <div style="padding: 30px;">
+                            <h3 style="color: #003366;">¡Hola ${datosPaciente.nombre.split(' ')[0]}!</h3>
+                            <p>Adjunto a este correo encontrarás la constancia de asistencia y vinculación a tu proceso de atención psicológica.</p>
+                            <p>Este documento ha sido expedido respetando la Ley 1090 de 2006 (Secreto Profesional y Confidencialidad).</p>
+                            <p style="font-size: 12px; color: #666; margin-top: 30px;">Psic. Jorge Arango Castaño</p>
+                        </div>
+                    </div>
+                `;
+
+                const resend = new Resend(resendApiKey);
+                const { error: envioError } = await resend.emails.send({
+                    from: 'Psic. Jorge Arango Castaño <cinformado@emcotic.com>',
+                    to: datosPaciente.email,
+                    bcc: 'cinformado@emcotic.com',
+                    subject: `📄 Constancia de Asistencia a Psicología - ${datosPaciente.nombre}`,
+                    html: htmlCorreo,
+                    attachments: [{ filename: `Constancia_Asistencia_${datosPaciente.nombre.replace(/\s+/g, '_')}.pdf`, content: Buffer.from(pdfBuffer) }]
+                });
+
+                if (envioError) {
+                    console.error('[enviarConstancia] Error Resend:', envioError);
+                    return response.status(502).json({ message: `Fallo al enviar correo: ${envioError.message}` });
+                }
+
+                return response.status(200).json({ message: 'Constancia enviada correctamente.' });
+            }
+
 
             if (action === 'saveEvoSignature') {
                 if (!data.pacienteId || !data.evoId || !data.firmaDigital) return response.status(400).json({ message: 'Faltan datos de firma.' });
