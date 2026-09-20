@@ -23,12 +23,12 @@ async function obtenerLogoBytes(request) {
         return null;
     }
 }
-// NUEVO: Descarga la firma del psicólogo (firma.png)
+
+// Descarga la firma del psicólogo (firma.png)
 async function obtenerFirmaBytes(request) {
     try {
         const proto = request.headers['x-forwarded-proto'] || 'https';
         const host = request.headers['x-forwarded-host'] || request.headers.host;
-        // CORRECCIÓN: Apuntando a firma.png
         const url = process.env.FIRMA_URL || `${proto}://${host}/firma.png`;
         const res = await fetch(url);
         if (!res.ok) { console.error('[firma] No se pudo descargar la firma. Status', res.status, url); return null; }
@@ -137,21 +137,35 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
     y = escribirParrafo(page, parrafo3, font, 11, maxWidth, margin, y);
     y = escribirParrafo(page, textoFecha, font, 11, maxWidth, margin, y);
 
-    // Bloque de Firma
-    y -= 80;
+    // ==========================================
+    // BLOQUE DE FIRMA REDISEÑADO
+    // ==========================================
+    y -= 80; // Espacio antes de la firma
 
-    // Incrustar firma si existe
+    // Primero dibujamos el texto y la línea para que queden "debajo" si la firma es PNG transparente
+    const yLinea = y;
+    // page.drawLine({ start: { x: margin, y: yLinea }, end: { x: margin + 200, y: yLinea }, thickness: 1 }); // Comentado si prefieres sin línea, como tu imagen 2
+    
+    const yTextoNombre = yLinea - 15;
+    page.drawText('Jorge Arango Castaño', { x: margin, y: yTextoNombre, font: boldFont, size: 14 }); // Aumentado el tamaño como en la imagen
+    
+    const yTextoCargo = yTextoNombre - 15;
+    page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y: yTextoCargo, font: font, size: 11, color: rgb(0, 0.4, 0.8) }); // Azul como en la imagen 2
+
+    // Luego incrustamos la firma superpuesta
     if (firmaBytes) {
         try {
             const firmaImage = await pdfDoc.embedPng(firmaBytes);
-            // Ajustar altura de la firma a unos 60px y calcular ancho proporcional
-            const alturaFirma = 60;
+            // Ajustamos la altura para hacerla más grande
+            const alturaFirma = 80; 
             const escalaFirma = alturaFirma / firmaImage.height;
             const anchoFirma = firmaImage.width * escalaFirma;
-            // Dibujar la firma centrada sobre la línea (margin + 100 es el centro de la línea de 200px)
+            
+            // La dibujamos más abajo (yTextoNombre - 20) para que "cruce" el texto del nombre
+            // Y la desplazamos un poco a la izquierda (margin - 10) o la centramos según prefieras
             page.drawImage(firmaImage, { 
-                x: margin + 100 - (anchoFirma / 2), 
-                y: y, 
+                x: margin - 10, 
+                y: yTextoNombre - 30, // Coordenada clave para que atraviese el texto
                 width: anchoFirma, 
                 height: alturaFirma 
             });
@@ -160,16 +174,10 @@ async function crearPDFConstancia(datosPaciente, fechaInicio, textoEstado, logoB
         }
     }
 
-    page.drawLine({ start: { x: margin, y }, end: { x: margin + 200, y }, thickness: 1 });
-    y -= 15;
-    page.drawText('JORGE ARANGO CASTAÑO', { x: margin, y, font: boldFont, size: 11 });
-    y -= 15;
-    page.drawText('Psicólogo — Tarjeta Profesional No. 119700', { x: margin, y, font: font, size: 10 });
-
     return await pdfDoc.save();
 }
 
-async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgent) {
+async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgent, logoBytes) {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage();
     const { width, height } = page.getSize();
@@ -181,7 +189,9 @@ async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgen
     const brandColor = rgb(0, 0.2, 0.4);
     const maxWidth = width - 2 * margin;
 
-    page.drawText('Caminos del Ser - Gestión Existencial', { x: margin, y, font: boldFont, size: 12, color: brandColor });
+    await dibujarLogo(pdfDoc, page, logoBytes, 45, margin);
+
+    page.drawText('Psic. Jorge Arango Castaño', { x: margin, y, font: boldFont, size: 12, color: brandColor });
     page.drawLine({ start: { x: margin, y: y - 10 }, end: { x: width - margin, y: y - 10 }, thickness: 1, color: brandColor });
     y -= 40;
 
@@ -244,7 +254,7 @@ async function crearPDFValidacionSesion(nombre, fecha, tarea, firmaB64, userAgen
     return await pdfDoc.save();
 }
 
-async function crearPDFReciboCaja(nombre, fecha, valor) {
+async function crearPDFReciboCaja(nombre, fecha, valor, logoBytes) {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([600, 400]);
     const { width, height } = page.getSize();
@@ -255,9 +265,11 @@ async function crearPDFReciboCaja(nombre, fecha, valor) {
     const margin = 50;
     const brandColor = rgb(0, 0.2, 0.4);
 
-    page.drawText('Caminos del Ser - Gestión Existencial', { x: margin, y, font: boldFont, size: 16, color: brandColor });
+    await dibujarLogo(pdfDoc, page, logoBytes, 38, margin);
+
+    page.drawText('Psic. Jorge Arango Castaño', { x: margin, y, font: boldFont, size: 16, color: brandColor });
     y -= 20;
-    page.drawText('Jorge Arango Castaño - Psicólogo TP: 119700', { x: margin, y, font: font, size: 10, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText('TP: 119700', { x: margin, y, font: font, size: 10, color: rgb(0.4, 0.4, 0.4) });
     y -= 15;
     page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: brandColor });
 
@@ -281,8 +293,11 @@ async function crearPDFReciboCaja(nombre, fecha, valor) {
     const valorFormateado = formatter.format(Number(valor));
 
     page.drawRectangle({ x: width - margin - 200, y: y - 10, width: 200, height: 40, color: rgb(0.95, 0.97, 1) });
-    page.drawText('VALOR PAGADO:', { x: width - margin - 190, y: y + 5, font: boldFont, size: 12, color: brandColor });
-    page.drawText(valorFormateado, { x: width - margin - 190 + 100, y: y + 5, font: boldFont, size: 14, color: rgb(0.1, 0.6, 0.3) });
+    const etiquetaValorX = width - margin - 190;
+    const etiquetaValorY = y + 5;
+    page.drawText('VALOR PAGADO:', { x: etiquetaValorX, y: etiquetaValorY, font: boldFont, size: 12, color: brandColor });
+    const anchoEtiquetaValor = boldFont.widthOfTextAtSize('VALOR PAGADO:', 12);
+    page.drawText(valorFormateado, { x: etiquetaValorX + anchoEtiquetaValor + 12, y: etiquetaValorY, font: boldFont, size: 14, color: rgb(0.1, 0.6, 0.3) });
 
     y -= 60;
     page.drawText('Este documento es un comprobante de pago emitido electrónicamente.', { x: margin, y, font: font, size: 9, color: rgb(0.5, 0.5, 0.5) });
@@ -426,12 +441,14 @@ export default async function handler(request, response) {
                     textoEstado = `finalizado el ${formatearFechaLarga(fechaFinBruta)}`;
                 }
 
-                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY; // <-- Ajustado al env original
+                const resendApiKey = process.env.RESEND2_API_KEY;
                 if (!resendApiKey) return response.status(500).json({ message: 'Servicio de correo no configurado.' });
                 
                 const logoBytes = await obtenerLogoBytes(request);
-                const firmaBytes = await obtenerFirmaBytes(request); // Extraemos la firma
-                const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes, firmaBytes); // Pasamos la firma al PDF
+                const firmaBytes = await obtenerFirmaBytes(request); // Descargamos la firma
+                
+                // Pasamos la firma a la función generadora
+                const pdfBuffer = await crearPDFConstancia(datosPaciente, fechaInicioTexto, textoEstado, logoBytes, firmaBytes);
 
                 const htmlCorreo = `
                     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
@@ -449,9 +466,9 @@ export default async function handler(request, response) {
 
                 const resend = new Resend(resendApiKey);
                 const { error: envioError } = await resend.emails.send({
-                    from: 'Psic. Jorge Arango Castaño <cinformado@emcotic.com>',
+                    from: 'Psic. Jorge Arango Castaño <psic@jorgearangoc.com>',
                     to: datosPaciente.email,
-                    bcc: 'cinformado@emcotic.com',
+                    bcc: 'psic@jorgearangoc.com',
                     subject: `📄 Constancia de Asistencia a Psicología - ${datosPaciente.nombre}`,
                     html: htmlCorreo,
                     attachments: [{ filename: `Constancia_Asistencia_${datosPaciente.nombre.replace(/\s+/g, '_')}.pdf`, content: Buffer.from(pdfBuffer) }]
@@ -464,7 +481,6 @@ export default async function handler(request, response) {
 
                 return response.status(200).json({ message: 'Constancia enviada correctamente.' });
             }
-
 
             if (action === 'saveEvoSignature') {
                 if (!data.pacienteId || !data.evoId || !data.firmaDigital) return response.status(400).json({ message: 'Faltan datos de firma.' });
@@ -499,7 +515,7 @@ export default async function handler(request, response) {
                     tareaSesionMail = evoluciones[evoIndex].tarea || evoluciones[evoIndex].cierre || 'No se consignó tarea.';
                 }
 
-                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
+                const resendApiKey = process.env.RESEND2_API_KEY;
                 if (resendApiKey) {
                     const resend = new Resend(resendApiKey);
                     let emailPaciente = "";
@@ -521,7 +537,8 @@ export default async function handler(request, response) {
                         const nombreSeguro = nombreCompleto || 'Paciente';
                         const fechaSesionF = new Date(`${fechaSesionMail}T12:00:00`).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
                         const userAgentString = request.headers['user-agent'] || 'Desconocido';
-                        const pdfBuffer = await crearPDFValidacionSesion(nombreSeguro, fechaSesionF, tareaSesionMail, data.firmaDigital, userAgentString);
+                        const logoBytes = await obtenerLogoBytes(request);
+                        const pdfBuffer = await crearPDFValidacionSesion(nombreSeguro, fechaSesionF, tareaSesionMail, data.firmaDigital, userAgentString, logoBytes);
 
                         const htmlPaciente = `
                             <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
@@ -533,38 +550,33 @@ export default async function handler(request, response) {
                                     <p>Hola <strong>${nombreSeguro}</strong>,</p>
                                     <p>Este correo confirma que tu firma ha sido anexada a tu historia clínica para la sesión del <strong>${fechaSesionF}</strong>.</p>
                                     <p>Adjunto encontrarás el certificado PDF con la tarea consignada.</p>
+                                    <p style="font-size: 12px; color: #666; margin-top: 30px;">Psic. Jorge Arango Castaño</p>
                                 </div>
                             </div>
                         `;
 
-                        await resend.emails.send({
-                            from: 'Caminos del Ser <cinformado@emcotic.com>',
+                        const { error: errFirmaPaciente } = await resend.emails.send({
+                            from: 'Psic. Jorge Arango Castaño <psic@jorgearangoc.com>',
                             to: emailPaciente,
                             subject: `✅ Certificado de Sesión Realizada - ${fechaSesionF}`,
                             html: htmlPaciente,
                             attachments: [{ filename: `Validacion-${fechaSesionMail}.pdf`, content: Buffer.from(pdfBuffer) }]
                         });
+                        if (errFirmaPaciente) console.error('[saveEvoSignature] Resend rechazó el correo al paciente:', errFirmaPaciente);
 
-                        await resend.emails.send({
-                            from: 'Sistema CInformado <cinformado@emcotic.com>',
-                            to: 'cinformado@emcotic.com',
+                        const { error: errFirmaPsico } = await resend.emails.send({
+                            from: 'Sistema CInformado <psic@jorgearangoc.com>',
+                            to: 'psic@jorgearangoc.com',
                             subject: `✅ Validación de Sesión: ${nombreSeguro}`,
                             html: `<p>El paciente ha validado la sesión. Puedes revisar el certificado en tu bandeja.</p>`,
                             attachments: [{ filename: `Validacion-${nombreSeguro.replace(/\s+/g, '')}-${fechaSesionMail}.pdf`, content: Buffer.from(pdfBuffer) }]
                         });
+                        if (errFirmaPsico) console.error('[saveEvoSignature] Resend rechazó la copia al psicólogo:', errFirmaPsico);
                     }
                 }
                 return response.status(200).json({ message: 'Firma guardada correctamente.' });
             }
 
-            // ============================================================
-            // ACCIÓN DEDICADA PARA EL RECIBO DE PAGO
-            // Homologada al flujo de la firma (saveEvoSignature):
-            // se dispara explícitamente, arma el PDF y envía con await.
-            // Idempotente: marca la sesión en el mapa "recibosEnviados"
-            // (guardado con merge, así el regrabado del arreglo de
-            // evoluciones no lo borra) para no duplicar recibos.
-            // ============================================================
             if (action === 'enviarReciboPago') {
                 if (!data.pacienteId || !data.evoId) return response.status(400).json({ message: 'Faltan datos para el recibo.' });
 
@@ -591,15 +603,14 @@ export default async function handler(request, response) {
                 }
 
                 const recibosEnviados = dataHist.recibosEnviados || {};
-                // Con 'forzar: true' (botón Reenviar recibo) se salta el candado anti-duplicados.
                 if (recibosEnviados[data.evoId] && data.forzar !== true) {
                     return response.status(200).json({ message: 'El recibo de esta sesión ya fue enviado. Usa "Reenviar recibo" para forzar el reenvío.' });
                 }
 
-                const resendApiKey = process.env.RESEND_EMCOTIC_API_KEY;
+                const resendApiKey = process.env.RESEND2_API_KEY;
                 if (!resendApiKey) {
-                    console.error('[enviarReciboPago] Falta RESEND_EMCOTIC_API_KEY: no se puede enviar el recibo.');
-                    return response.status(500).json({ message: 'Servicio de correo no configurado.' });
+                    console.error('[enviarReciboPago] Falta RESEND2_API_KEY: no se puede enviar el recibo.');
+                    return response.status(500).json({ message: 'Servicio de correo no configurado (falta RESEND2_API_KEY en este proyecto).' });
                 }
 
                 const resend = new Resend(resendApiKey);
@@ -626,7 +637,8 @@ export default async function handler(request, response) {
                 const nombreSeguro = nombreCompleto || 'Paciente';
                 const fechaFormat = new Date(`${fechaRecibo}T12:00:00`).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
                 const formatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
-                const pdfBuffer = await crearPDFReciboCaja(nombreSeguro, fechaFormat, valorRecibo);
+                const logoBytes = await obtenerLogoBytes(request);
+                const pdfBuffer = await crearPDFReciboCaja(nombreSeguro, fechaFormat, valorRecibo, logoBytes);
 
                 const htmlCorreo = `
                     <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 10px; overflow: hidden;">
@@ -641,25 +653,31 @@ export default async function handler(request, response) {
                                 <p style="margin: 0; font-size: 16px;"><strong>Valor Pagado:</strong> ${formatter.format(Number(valorRecibo))}</p>
                             </div>
                             <p>Adjunto a este correo encontrarás el documento PDF que sirve como soporte de este recaudo para tus registros financieros o reembolsos con entidades de salud complementaria si aplica.</p>
-                            <p style="font-size: 12px; color: #666; margin-top: 30px;">Caminos del Ser - Psic. Jorge Arango Castaño</p>
+                            <p style="font-size: 12px; color: #666; margin-top: 30px;">Psic. Jorge Arango Castaño</p>
                         </div>
                     </div>
                 `;
 
-                await resend.emails.send({
-                    from: 'Caminos del Ser - Finanzas <cinformado@emcotic.com>',
+                const { data: envioData, error: envioError } = await resend.emails.send({
+                    from: 'Psic. Jorge Arango Castaño - Finanzas <psic@jorgearangoc.com>',
                     to: emailPaciente,
-                    bcc: 'cinformado@emcotic.com',
+                    bcc: 'psic@jorgearangoc.com',
                     subject: `Comprobante de Pago - Sesión ${fechaFormat}`,
                     html: htmlCorreo,
-                    attachments: [{ filename: `Recibo-CaminosDelSer-${fechaRecibo}.pdf`, content: Buffer.from(pdfBuffer) }]
+                    attachments: [{ filename: `Recibo-${fechaRecibo}.pdf`, content: Buffer.from(pdfBuffer) }]
                 });
+
+                if (envioError) {
+                    console.error('[enviarReciboPago] Resend RECHAZÓ el envío:', JSON.stringify(envioError));
+                    const detalle = envioError.message || envioError.name || 'Error desconocido de Resend';
+                    return response.status(502).json({ message: `El correo NO se envió. Resend respondió: ${detalle}` });
+                }
 
                 await docRef.set({
                     recibosEnviados: { [data.evoId]: new Date().toISOString() }
                 }, { merge: true });
 
-                console.log(`[enviarReciboPago] Recibo enviado a ${emailPaciente} (sesión ${fechaRecibo}, valor ${valorRecibo}).`);
+                console.log(`[enviarReciboPago] Recibo enviado a ${emailPaciente} (sesión ${fechaRecibo}, valor ${valorRecibo}). id Resend: ${envioData?.id || 'N/D'}`);
                 return response.status(200).json({ message: 'Recibo enviado correctamente.' });
             }
 
@@ -681,9 +699,8 @@ export default async function handler(request, response) {
                     return response.status(200).json({ message: 'Plan de trabajo guardado.' });
 
                 case 'saveEvolucion':
-                    // Ahora saveEvolucion SOLO guarda. El recibo se envía por la
-                    // acción dedicada 'enviarReciboPago', que el frontend dispara
-                    // en el momento de marcar la sesión como pagada.
+                    // saveEvolucion SOLO guarda. El recibo se envía por la acción
+                    // dedicada 'enviarReciboPago', que el frontend dispara al marcar pagado.
                     if (!data.pacienteId) return response.status(400).json({ message: 'Falta ID.' });
                     await db.collection('historias_clinicas').doc(data.pacienteId).set({
                         evoluciones: data.evoluciones || [],
